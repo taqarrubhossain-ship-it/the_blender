@@ -3,52 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUNY PathFinder | Smart Scheduling</title>
+    <title>CUNY PathFinder | Universal Degree Planner</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <nav class="navbar">
         <div class="logo">CUNY <span>PathFinder</span></div>
-        <div class="user-status">Biology Major | Hunter College</div>
+        <div id="user-profile" class="user-status">Guest User</div>
     </nav>
 
     <main class="container">
         <header class="hero">
-            <h1>Plan Your Next Semester</h1>
-            <p>Upload your transcript to see eligible courses and ePermit opportunities.</p>
+            <h1>Your Degree, Optimized.</h1>
+            <p>Upload your transcript to unlock your personalized major roadmap and ePermit options.</p>
         </header>
 
         <section class="upload-section" id="upload-area">
             <div class="card">
-                <h3>Step 1: Sync Your Progress</h3>
+                <h3>Step 1: Data Integration</h3>
+                <div class="input-group">
+                    <label>Select Your Campus:</label>
+                    <select id="campusSelect">
+                        <option value="hunter">Hunter College</option>
+                        <option value="baruch">Baruch College</option>
+                        <option value="ccny">City College (CCNY)</option>
+                        <option value="brooklyn">Brooklyn College</option>
+                    </select>
+                </div>
+                <br>
                 <input type="file" id="transcriptUpload" hidden>
-                <label for="transcriptUpload" class="upload-btn">
-                    Upload CUNY Transcript (PDF/TXT)
-                </label>
-                <p class="hint">We use this to check prerequisites and ePermit eligibility.</p>
+                <label for="transcriptUpload" class="upload-btn">Upload Transcript</label>
             </div>
         </section>
 
         <section class="dashboard hidden" id="dashboard">
+            <div class="status-bar">
+                <span id="detected-major">Major: Detecting...</span> | 
+                <span id="credits-count">Credits Earned: 0</span>
+            </div>
+            
             <div class="grid">
                 <div class="col">
-                    <h3>Recommended for You</h3>
-                    <div id="recommendation-list">
-                        </div>
+                    <h3>Next Semester Core Requirements</h3>
+                    <div id="recommendation-list"></div>
                 </div>
 
                 <div class="col">
-                    <h3>ePermit Opportunities</h3>
-                    <p class="subtext">Available at other CUNY campuses</p>
-                    <div id="epermit-list">
-                        </div>
+                    <h3>Cross-Campus ePermit Options</h3>
+                    <div id="epermit-list"></div>
                 </div>
             </div>
 
             <div class="long-term-plan">
-                <h3>Long-term Roadmap</h3>
-                <div class="timeline" id="timeline">
-                    </div>
+                <h3>Multi-Semester Roadmap</h3>
+                <div class="timeline" id="timeline"></div>
             </div>
         </section>
     </main>
