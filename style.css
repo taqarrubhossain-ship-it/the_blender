@@ -1,1 +1,85 @@
+:root {
+    --cuny-blue: #1D3A6C;
+    --accent-gold: #F2C94C;
+    --success-green: #27AE60;
+    --bg-light: #F4F7F9;
+    --text-dark: #333;
+}
 
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.navbar {
+    background: var(--cuny-blue);
+    color: white;
+    padding: 1rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo span { font-weight: bold; color: var(--accent-gold); }
+
+.container { width: 90%; max-width: 1200px; margin: 2rem auto; }
+
+.card {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    text-align: center;
+}
+
+.upload-btn {
+    display: inline-block;
+    background: var(--cuny-blue);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: transform 0.2s;
+}
+
+.upload-btn:hover { transform: translateY(-2px); }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+
+.course-card {
+    background: white;
+    padding: 1rem;
+    border-left: 5px solid var(--cuny-blue);
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.epermit-tag {
+    background: #E8F0FE;
+    color: #1967D2;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.hidden { display: none; }
+
+.timeline {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding: 1rem 0;
+}
+
+.semester-box {
+    min-width: 250px;
+    background: #fff;
+    padding: 1rem;
+    border-top: 4px solid var(--accent-gold);
+}
