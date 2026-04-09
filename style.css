@@ -98,7 +98,31 @@ body {
     text-align: left;
     display: inline-block;
 }
+/* Status Dots */
+.legend { margin-bottom: 15px; font-size: 0.85rem; }
+.status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+.available { background-color: var(--cuny-blue); }
+.locked { background-color: #ccc; }
 
+/* Locked Course Card */
+.course-card.is-locked {
+    border-left-color: #ccc;
+    background-color: #f9f9f9;
+    color: #888;
+    cursor: not-allowed;
+}
+
+.lock-icon {
+    font-size: 1.2rem;
+    margin-left: 10px;
+}
+
+.prereq-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: #d93025; /* Warning Red */
+    margin-top: 4px;
+}
 select {
     padding: 8px;
     border-radius: 4px;
