@@ -1,1 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUNY PathFinder | Smart Scheduling</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">CUNY <span>PathFinder</span></div>
+        <div class="user-status">Biology Major | Hunter College</div>
+    </nav>
 
+    <main class="container">
+        <header class="hero">
+            <h1>Plan Your Next Semester</h1>
+            <p>Upload your transcript to see eligible courses and ePermit opportunities.</p>
+        </header>
+
+        <section class="upload-section" id="upload-area">
+            <div class="card">
+                <h3>Step 1: Sync Your Progress</h3>
+                <input type="file" id="transcriptUpload" hidden>
+                <label for="transcriptUpload" class="upload-btn">
+                    Upload CUNY Transcript (PDF/TXT)
+                </label>
+                <p class="hint">We use this to check prerequisites and ePermit eligibility.</p>
+            </div>
+        </section>
+
+        <section class="dashboard hidden" id="dashboard">
+            <div class="grid">
+                <div class="col">
+                    <h3>Recommended for You</h3>
+                    <div id="recommendation-list">
+                        </div>
+                </div>
+
+                <div class="col">
+                    <h3>ePermit Opportunities</h3>
+                    <p class="subtext">Available at other CUNY campuses</p>
+                    <div id="epermit-list">
+                        </div>
+                </div>
+            </div>
+
+            <div class="long-term-plan">
+                <h3>Long-term Roadmap</h3>
+                <div class="timeline" id="timeline">
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
