@@ -18,23 +18,28 @@
             <p>Upload your transcript to unlock your personalized major roadmap and ePermit options.</p>
         </header>
 
-        <section class="upload-section" id="upload-area">
-            <div class="card">
-                <h3>Step 1: Data Integration</h3>
-                <div class="input-group">
-                    <label>Select Your Campus:</label>
-                    <select id="campusSelect">
-                        <option value="hunter">Hunter College</option>
-                        <option value="baruch">Baruch College</option>
-                        <option value="ccny">City College (CCNY)</option>
-                        <option value="brooklyn">Brooklyn College</option>
-                    </select>
-                </div>
-                <br>
-                <input type="file" id="transcriptUpload" hidden>
-                <label for="transcriptUpload" class="upload-btn">Upload Transcript</label>
-            </div>
-        </section>
+     <section class="selection-area" id="input-area">
+    <div class="card-grid">
+        <div class="card">
+            <h3>Option A: Fast Sync</h3>
+            <p>Upload your transcript to auto-check prerequisites.</p>
+            <input type="file" id="transcriptUpload" hidden>
+            <label for="transcriptUpload" class="upload-btn">Upload Transcript</label>
+        </div>
+
+        <div class="card">
+            <h3>Option B: Manual Explore</h3>
+            <p>Select a major to see all requirements.</p>
+            <select id="majorSelect" class="styled-select">
+                <option value="" disabled selected>Select a Major...</option>
+                <option value="Biology">Biology</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Psychology">Psychology</option>
+            </select>
+            <button id="viewMajorBtn" class="secondary-btn">View Requirements</button>
+        </div>
+    </div>
+</section>
 
         <section class="dashboard hidden" id="dashboard">
             <div class="status-bar">
