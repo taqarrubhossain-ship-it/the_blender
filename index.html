@@ -15,46 +15,55 @@
     <main class="container">
         <header class="hero">
             <h1>Your Degree, Optimized.</h1>
-            <p>Upload your transcript to unlock your personalized major roadmap and ePermit options.</p>
+            <p>Upload your transcript for a personalized roadmap or explore any major manually.</p>
         </header>
 
-     <section class="selection-area" id="input-area">
-    <div class="card-grid">
-        <div class="card">
-            <h3>Option A: Fast Sync</h3>
-            <p>Upload your transcript to auto-check prerequisites.</p>
-            <input type="file" id="transcriptUpload" hidden>
-            <label for="transcriptUpload" class="upload-btn">Upload Transcript</label>
-        </div>
+        <section class="selection-area" id="input-area">
+            <div class="card-grid">
+                <div class="card">
+                    <h3>Option A: Fast Sync</h3>
+                    <p>Upload your transcript to auto-check prerequisites.</p>
+                    <input type="file" id="transcriptUpload" hidden>
+                    <label for="transcriptUpload" class="upload-btn">Upload Transcript</label>
+                </div>
 
-        <div class="card">
-            <h3>Option B: Manual Explore</h3>
-            <p>Select a major to see all requirements.</p>
-            <select id="majorSelect" class="styled-select">
-                <option value="" disabled selected>Select a Major...</option>
-                <option value="Biology">Biology</option>
-                <option value="Computer Science">Computer Science</option>
-                <option value="Psychology">Psychology</option>
-            </select>
-            <button id="viewMajorBtn" class="secondary-btn">View Requirements</button>
-        </div>
-    </div>
-</section>
+                <div class="card">
+                    <h3>Option B: Manual Explore</h3>
+                    <p>Select a major to see all requirements.</p>
+                    <select id="majorSelect" class="styled-select">
+                        <option value="" disabled selected>Select a Major...</option>
+                        <option value="Biology">Biology</option>
+                        <option value="Computer Science">Computer Science</option>
+                        <option value="Psychology">Psychology</option>
+                    </select>
+                    <button id="viewMajorBtn" class="secondary-btn">View Requirements</button>
+                </div>
+            </div>
+        </section>
 
         <section class="dashboard hidden" id="dashboard">
             <div class="status-bar">
                 <span id="detected-major">Major: Detecting...</span> | 
                 <span id="credits-count">Credits Earned: 0</span>
             </div>
+
+            <div class="legend" style="margin: 15px 0;">
+                <span style="margin-right: 15px;">
+                    <span class="status-dot available"></span> Available
+                </span>
+                <span>
+                    <span class="status-dot locked"></span> Prerequisites Needed
+                </span>
+            </div>
             
             <div class="grid">
                 <div class="col">
-                    <h3>Next Semester Core Requirements</h3>
+                    <h3>Major Requirements</h3>
                     <div id="recommendation-list"></div>
                 </div>
 
                 <div class="col">
-                    <h3>Cross-Campus ePermit Options</h3>
+                    <h3>ePermit Opportunities</h3>
                     <div id="epermit-list"></div>
                 </div>
             </div>
@@ -65,8 +74,9 @@
             </div>
         </section>
     </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="script.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script src="script.js"></script>
 </body>
 </html>
