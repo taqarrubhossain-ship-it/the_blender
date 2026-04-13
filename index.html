@@ -10,6 +10,7 @@
     <nav class="navbar">
         <div class="logo">CUNY <span>PathFinder</span></div>
         <div id="user-profile" class="user-status">Guest User</div>
+        <button id="openChatBtn" class="chat-toggle-btn" style="display:none;">💬 Ask Advisor</button>
     </nav>
 
     <main class="container">
@@ -53,16 +54,13 @@
         <section class="dashboard hidden" id="dashboard">
             <div class="status-bar">
                 <span id="detected-major">Major: Detecting...</span> | 
-                <span id="credits-count">Credits Earned: 0</span>
+                <span id="credits-count">Credits: Syncing...</span>
             </div>
 
             <div class="legend" style="margin: 15px 0;">
-                <span style="margin-right: 15px;">
-                    <span class="status-dot available"></span> Available
-                </span>
-                <span>
-                    <span class="status-dot locked"></span> Prerequisites Needed
-                </span>
+                <span><span class="status-dot dot-done"></span> Completed</span>
+                <span><span class="status-dot dot-available"></span> Available</span>
+                <span><span class="status-dot dot-locked"></span> Locked</span>
             </div>
             
             <div class="grid">
@@ -76,12 +74,21 @@
                     <div id="epermit-list"></div>
                 </div>
             </div>
-
-            <div class="long-term-plan">
-                <h3>Multi-Semester Roadmap</h3>
-                <div class="timeline" id="timeline"></div>
-            </div>
         </section>
+
+        <div class="advisor-drawer" id="advisorDrawer">
+            <div class="advisor-header">
+                <span>🎓 AI Academic Advisor</span>
+                <button id="closeChat" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">×</button>
+            </div>
+            <div class="chat-history" id="chatHistory">
+                <p class="bot-msg">Paste your audit to start! Once synced, I can help you plan your next Biology semester at CCNY.</p>
+            </div>
+            <div class="chat-input-wrapper">
+                <input type="text" id="chatInput" placeholder="Ask about your roadmap...">
+                <button id="sendChat" class="add-btn">Send</button>
+            </div>
+        </div>
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
