@@ -13,6 +13,7 @@ body {
     background-color: var(--bg-light);
     color: var(--text-dark);
     margin: 0;
+    overflow-x: hidden; /* Prevents side-scrolling when drawer is closed */
 }
 
 /* Layout */
@@ -23,12 +24,16 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .logo span { font-weight: bold; color: var(--accent-gold); }
 
 .container { width: 90%; max-width: 1200px; margin: 2rem auto; }
 
+/* Selection Grid */
 .card-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -46,18 +51,25 @@ body {
 
 /* Smart Sync Textarea */
 #dwPaste {
+    width: 100%;
+    height: 120px;
     resize: vertical;
     outline: none;
     border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
     transition: border-color 0.2s;
+    margin-bottom: 10px;
 }
 
 #dwPaste:focus {
     border-color: var(--cuny-blue);
+    box-shadow: 0 0 0 2px rgba(29, 58, 108, 0.1);
 }
 
 /* Interaction */
-.upload-btn, .secondary-btn {
+.upload-btn, .secondary-btn, .add-btn, .chat-toggle-btn {
     display: inline-block;
     padding: 12px 24px;
     border-radius: 6px;
@@ -69,23 +81,22 @@ body {
     font-size: 1rem;
 }
 
-.upload-btn {
-    background: var(--cuny-blue);
-    color: white;
-    margin-top: 1rem;
-    width: 100%;
-}
+.upload-btn { background: var(--cuny-blue); color: white; margin-top: 1rem; width: 100%; }
+.secondary-btn { background: white; border: 2px solid var(--cuny-blue); color: var(--cuny-blue); width: 100%; }
+.add-btn { background: var(--success-green); color: white; padding: 8px 16px; }
 
-.secondary-btn {
-    background: white;
-    border: 2px solid var(--cuny-blue);
+.chat-toggle-btn {
+    background: var(--accent-gold);
     color: var(--cuny-blue);
-    width: 100%;
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.upload-btn:hover, .secondary-btn:hover {
+.upload-btn:hover, .secondary-btn:hover, .chat-toggle-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    filter: brightness(1.1);
 }
 
 .styled-select {
@@ -99,16 +110,18 @@ body {
 
 /* Dashboard Elements */
 .status-bar {
-    background: #e0e0e0;
+    background: #fff;
     padding: 10px 20px;
     border-radius: 8px;
     margin-bottom: 20px;
     font-weight: bold;
     display: inline-block;
+    border: 1px solid #eee;
 }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
 
+/* Course Cards & States */
 .course-card {
     background: white;
     padding: 1.2rem;
@@ -119,27 +132,13 @@ body {
     align-items: center;
     text-align: left;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
+    border-left: 6px solid #ccc; /* Default Locked */
 }
 
-/* Course States */
-.is-done {
-    border-left: 6px solid var(--success-green);
-    background-color: #f6fff8;
-    opacity: 0.9;
-}
+.is-done { border-left-color: var(--success-green); background-color: #f6fff8; }
+.is-available { border-left-color: var(--available-blue); background-color: #f0f7ff; }
+.is-locked { border-left-color: #ccc; background-color: #f9f9f9; }
 
-.is-available {
-    border-left: 6px solid var(--available-blue);
-    background-color: #f0f7ff;
-}
-
-.is-locked {
-    border-left: 6px solid #ccc;
-    background-color: #f9f9f9;
-}
-
-/* Tag & Labels */
 .category-tag {
     font-size: 0.65rem;
     background: #eef1f4;
@@ -152,43 +151,84 @@ body {
     font-weight: bold;
 }
 
-.status-text {
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-top: 5px;
+.status-text { display: block; font-size: 0.8rem; font-weight: 600; margin-top: 5px; }
+.prereq-hint { display: block; font-size: 0.75rem; color: var(--locked-red); margin-top: 4px; font-weight: 500; }
+
+/* Advisor Drawer */
+.advisor-drawer {
+    position: fixed;
+    right: -350px;
+    top: 0;
+    width: 320px;
+    height: 100%;
+    background: white;
+    box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
 }
 
-.status-text[style*="color: #4CAF50"] { color: var(--success-green) !important; }
+.advisor-drawer.open { right: 0; }
 
-.prereq-hint {
-    display: block;
-    font-size: 0.75rem;
-    color: var(--locked-red);
-    margin-top: 4px;
-    font-weight: 500;
+.advisor-header {
+    background: var(--cuny-blue);
+    color: white;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* Legend & Dots */
+.chat-history {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    background: #fdfdfd;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bot-msg {
+    background: #eef1f4;
+    padding: 12px;
+    border-radius: 12px;
+    border-bottom-left-radius: 2px;
+    font-size: 0.9rem;
+    max-width: 85%;
+    line-height: 1.4;
+}
+
+.chat-input-wrapper {
+    padding: 1rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+    background: white;
+}
+
+#chatInput {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    outline: none;
+}
+
+#chatInput:focus { border-color: var(--cuny-blue); }
+
+/* Legend */
 .legend { margin-bottom: 15px; font-size: 0.85rem; display: flex; gap: 15px; }
 .status-dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; }
 .dot-done { background-color: var(--success-green); }
 .dot-available { background-color: var(--available-blue); }
 .dot-locked { background-color: #ccc; }
 
-/* Timeline */
-.timeline { display: flex; gap: 1rem; overflow-x: auto; padding: 1rem 0; }
-.semester-box {
-    min-width: 250px;
-    background: #fff;
-    padding: 1rem;
-    border-top: 4px solid var(--accent-gold);
-    border-radius: 4px;
-}
-
 /* Utils */
 .hidden { display: none; }
 
 @media (max-width: 768px) {
     .card-grid, .grid { grid-template-columns: 1fr; }
+    .advisor-drawer { width: 100%; right: -100%; }
 }
