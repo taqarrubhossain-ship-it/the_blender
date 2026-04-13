@@ -3,7 +3,6 @@
    ========================================== */
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
-
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
@@ -19,110 +18,100 @@ async function fetchMajorData(selectedCollege, selectedMajor) {
         .eq('major_name', selectedMajor);
 
     if (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error:', error);
         return null;
     }
     return data;
 }
 
 /* ==========================================
-   3. EVENT LISTENERS
+   3. SMART SYNC & PARSING
    ========================================== */
-
-// Handle Manual Selection
-document.getElementById('viewMajorBtn').addEventListener('click', async function() {
-    const college = document.getElementById('collegeSelect').value;
-    const major = document.getElementById('majorSelect').value;
-
-    if (college && major) {
-        completedCourses = []; // Reset for manual check
-        this.innerText = "Loading...";
-        const courses = await fetchMajorData(college, major);
-        renderLockedDashboard(`${college} - ${major}`, courses);
-        this.innerText = "View Requirements";
-    } else {
-        alert("Please select both a College and a Major.");
-    }
-});
-
-// Handle DegreeWorks Smart Sync
 document.getElementById('syncBtn').addEventListener('click', async function() {
     const rawText = document.getElementById('dwPaste').value;
     
-    if (!rawText) {
-        alert("Please paste your DegreeWorks text first!");
+    if (!rawText.trim()) {
+        alert("The text area is empty!");
         return;
     }
 
-    // 1. Detect College automatically based on keywords in text
+    // A. Detect College (CCNY detection optimized for your paste)
     let detectedCol = "";
-    if (rawText.includes("Hunter College")) detectedCol = "Hunter";
-    else if (rawText.includes("City College")) detectedCol = "CCNY";
+    if (rawText.includes("ccny.cuny.edu") || rawText.includes("CCNY")) detectedCol = "CCNY";
+    else if (rawText.includes("Hunter")) detectedCol = "Hunter";
     else if (rawText.includes("Baruch")) detectedCol = "Baruch";
 
-    // 2. Find all Course Codes using Regex (e.g., CSCI 12700, PSY 1001)
-    const courseRegex = /([A-Z]{3,4}\s?\d{3,5})/g;
+    // B. Course Detection (Regex for 3-5 digit CUNY codes)
+    const courseRegex = /([A-Z]{2,4}\s\d{3,5})/g;
     const matches = rawText.match(courseRegex);
 
-    if (detectedCol && matches) {
-        completedCourses = [...new Set(matches)]; // Clean duplicates
-        alert(`Successfully Synced! Detected ${detectedCol} and ${completedCourses.length} courses.`);
+    if (matches) {
+        completedCourses = [...new Set(matches.map(c => c.trim()))];
         
-        // Auto-update UI
-        document.getElementById('collegeSelect').value = detectedCol;
-        const major = document.getElementById('majorSelect').value || "Computer Science"; // Default to CS if not picked
+        // C. Detect GPA & Credits
+        const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
+        const gpa = gpaMatch ? gpaMatch[1] : "N/A";
+
+        // D. Auto-update UI
+        document.getElementById('collegeSelect').value = detectedCol || "CCNY";
+        document.getElementById('majorSelect').value = "Biology"; // Focused on your Biology major
         
-        const courses = await fetchMajorData(detectedCol, major);
-        renderLockedDashboard(`${detectedCol} - ${major}`, courses);
+        alert(`Sync Successful!\nCollege: ${detectedCol}\nGPA: ${gpa}\nCourses Found: ${completedCourses.length}`);
+        
+        const courses = await fetchMajorData(detectedCol || "CCNY", "Biology");
+        renderLockedDashboard(`${detectedCol || "CCNY"} - Biology`, courses);
+        
+        // Show the Chat Button
+        document.getElementById('openChatBtn').style.display = "block";
+        document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">I see your <b>${gpa} GPA</b> at CCNY. You've completed ${completedCourses.length} course entries. What would you like to know about your Biology requirements?</p>`;
     } else {
-        alert("Sync failed. Make sure you copied the full DegreeWorks audit text.");
+        alert("Sync failed. No course codes found. Try copying the entire DegreeWorks page.");
     }
 });
 
 /* ==========================================
-   4. RENDERING LOGIC 
+   4. UI & CHAT CONTROLS
    ========================================== */
+const drawer = document.getElementById('advisorDrawer');
+document.getElementById('openChatBtn').addEventListener('click', () => drawer.classList.add('open'));
+document.getElementById('closeChat').addEventListener('click', () => drawer.classList.remove('open'));
+
+document.getElementById('viewMajorBtn').addEventListener('click', async function() {
+    const col = document.getElementById('collegeSelect').value;
+    const maj = document.getElementById('majorSelect').value;
+    if (col && maj) {
+        const courses = await fetchMajorData(col, maj);
+        renderLockedDashboard(`${col} - ${maj}`, courses);
+    }
+});
+
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
-    
     document.getElementById('user-profile').innerText = `${title} Explorer`;
     document.getElementById('detected-major').innerText = `Path: ${title}`;
 
     const recList = document.getElementById('recommendation-list');
     const permitList = document.getElementById('epermit-list');
-    
-    recList.innerHTML = ""; 
-    permitList.innerHTML = "";
-
-    if (!courses || courses.length === 0) {
-        recList.innerHTML = `<p>No course data found. Did you upload the Master CSV to Supabase?</p>`;
-        return;
-    }
+    recList.innerHTML = ""; permitList.innerHTML = "";
 
     courses.forEach(course => {
-        // A course is "Available" if it has no prereq OR the prereq is in our completed list
         const isMet = !course.prerequisite || completedCourses.includes(course.prerequisite);
-        // A course is "Already Done" if it's in our completed list
         const alreadyDone = completedCourses.includes(course.course_code);
         
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isMet ? 'is-locked' : 'is-available')}">
                 <div>
-                    <span class="category-tag">${course.category || 'Core'}</span>
+                    <span class="category-tag">${course.category || 'Core'}</span><br>
                     <strong>${course.course_code}</strong> - ${course.course_name}
                     <br>
-                    ${alreadyDone ? '<span class="status-text">✅ Completed</span>' : 
-                      (!isMet ? `<span class="prereq-hint">🔒 Requires: ${course.prerequisite}</span>` : 
-                      '<span class="status-text">🟢 Available to Take</span>')}
+                    ${alreadyDone ? '<span class="status-text" style="color:var(--success-green)">✅ Completed</span>' : 
+                      (!isMet ? `<span class="prereq-hint">🔒 Needs: ${course.prerequisite}</span>` : 
+                      '<span class="status-text" style="color:var(--available-blue)">🟢 Ready to Take</span>')}
                 </div>
             </div>
         `;
-
-        if (!course.is_epermit) {
-            recList.innerHTML += cardHTML;
-        } else {
-            permitList.innerHTML += cardHTML;
-        }
+        if (course.is_epermit) permitList.innerHTML += cardHTML;
+        else recList.innerHTML += cardHTML;
     });
 }
