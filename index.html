@@ -15,21 +15,21 @@
     <main class="container">
         <header class="hero">
             <h1>Your Degree, Optimized.</h1>
-            <p>Upload your transcript for a personalized roadmap or explore any major manually.</p>
+            <p>Sync your DegreeWorks or explore any major manually to see your roadmap.</p>
         </header>
 
         <section class="selection-area" id="input-area">
             <div class="card-grid">
                 <div class="card">
-                    <h3>Option A: Fast Sync</h3>
-                    <p>Upload your transcript to auto-check prerequisites.</p>
-                    <input type="file" id="transcriptUpload" hidden>
-                    <label for="transcriptUpload" class="upload-btn">Upload Transcript</label>
+                    <h3>Option A: Smart Sync</h3>
+                    <p>Copy your <strong>DegreeWorks Audit</strong> (Ctrl+A, Ctrl+C) and paste it below.</p>
+                    <textarea id="dwPaste" placeholder="Paste audit text here..." style="width:100%; height:120px; border:1px solid #ccc; border-radius:8px; margin-bottom:10px; padding:10px; font-family: sans-serif;"></textarea>
+                    <button id="syncBtn" class="upload-btn">Sync My Degree</button>
                 </div>
 
                 <div class="card">
                     <h3>Option B: Manual Explore</h3>
-                    <p>Select your college and major.</p>
+                    <p>Select your college and major manually.</p>
                     
                     <select id="collegeSelect" class="styled-select">
                         <option value="" disabled selected>Select College...</option>
@@ -44,6 +44,7 @@
                         <option value="Computer Science">Computer Science</option>
                         <option value="Psychology">Psychology</option>
                     </select>
+                    
                     <button id="viewMajorBtn" class="secondary-btn">View Requirements</button>
                 </div>
             </div>
