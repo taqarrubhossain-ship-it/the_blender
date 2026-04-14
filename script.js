@@ -25,10 +25,12 @@ async function fetchMajorData(selectedCollege, selectedMajor) {
 }
 
 /* ==========================================
-   3. SMART SYNC & TRIGGER LOGIC
+   3. SMART SYNC & TRIGGER LOGIC (OPTIMIZED)
    ========================================== */
 document.getElementById('syncBtn').addEventListener('click', async function() {
     const rawText = document.getElementById('dwPaste').value;
+    const dashboard = document.getElementById('dashboard');
+    const inputArea = document.getElementById('input-area');
     
     if (!rawText.trim()) {
         alert("The text area is empty! Please paste your DegreeWorks audit.");
@@ -36,60 +38,62 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     }
 
     // A. Detect College (Look for CUNY keywords)
-    let detectedCol = "";
-    if (rawText.includes("ccny.cuny.edu") || rawText.includes("CCNY") || rawText.includes("City College")) detectedCol = "CCNY";
-    else if (rawText.includes("Hunter")) detectedCol = "Hunter";
+    let detectedCol = "CCNY"; // Default to CCNY
+    if (rawText.includes("Hunter")) detectedCol = "Hunter";
     else if (rawText.includes("Baruch")) detectedCol = "Baruch";
 
-    // B. Detect Major (Scan for keywords)
+    // B. Priority Major Detection (Checks Biology first to avoid conflicts)
     let detectedMaj = "";
     const lowerText = rawText.toLowerCase();
-    if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
+    if (lowerText.includes("biology")) detectedMaj = "Biology";
+    else if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
     else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
-    else if (lowerText.includes("biology")) detectedMaj = "Biology";
+    else detectedMaj = "Biology"; // Fallback
 
     // C. Course Detection (Optimized Regex for 3-5 digit codes)
     const courseRegex = /([A-Z]{2,4}\s\d{3,5})/g;
     const matches = rawText.match(courseRegex);
+    completedCourses = matches ? [...new Set(matches.map(c => c.trim()))] : [];
 
-    if (matches) {
-        completedCourses = [...new Set(matches.map(c => c.trim()))];
+    // D. Extract GPA
+    const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
+    const gpa = gpaMatch ? gpaMatch[1] : "N/A";
+
+    // E. VISUAL TRIGGER: Show dashboard immediately so user knows it's working
+    inputArea.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    document.getElementById('user-profile').innerText = `Syncing ${detectedMaj}...`;
+
+    // F. Sync Select Menus to match detected data
+    document.getElementById('collegeSelect').value = detectedCol;
+    document.getElementById('majorSelect').value = detectedMaj;
+
+    // G. FETCH & RENDER
+    const courses = await fetchMajorData(detectedCol, detectedMaj);
+    
+    if (courses && courses.length > 0) {
+        renderLockedDashboard(`${detectedCol} - ${detectedMaj}`, courses);
         
-        // D. Detect GPA
-        const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
-        const gpa = gpaMatch ? gpaMatch[1] : "N/A";
+        // Success feedback in Advisor Chat
+        document.getElementById('openChatBtn').style.display = "block";
+        document.getElementById('chatHistory').innerHTML = `
+            <p class="bot-msg">
+                I've analyzed your <b>${detectedCol} ${detectedMaj}</b> audit. 
+                With a <b>${gpa} GPA</b> and ${completedCourses.length} course entries found, 
+                I've updated your roadmap below.
+            </p>`;
 
-        // E. Sync Select Menus to match detected data
-        if (detectedCol) document.getElementById('collegeSelect').value = detectedCol;
-        if (detectedMaj) document.getElementById('majorSelect').value = detectedMaj;
-        
-        const finalCol = detectedCol || document.getElementById('collegeSelect').value;
-        const finalMaj = detectedMaj || document.getElementById('majorSelect').value;
-
-        // F. THE TRIGGER: Fetch and Render Dashboard immediately
-        if (finalCol && finalMaj) {
-            const courses = await fetchMajorData(finalCol, finalMaj);
-            
-            if (courses && courses.length > 0) {
-                renderLockedDashboard(`${finalCol} - ${finalMaj}`, courses);
-                
-                // Success feedback
-                alert(`Sync Successful!\nCollege: ${finalCol}\nMajor: ${finalMaj}\nGPA: ${gpa}`);
-                
-                // Show/Update Advisor Chat
-                document.getElementById('openChatBtn').style.display = "block";
-                document.getElementById('chatHistory').innerHTML = `
-                    <p class="bot-msg">
-                        I've analyzed your <b>${finalCol} ${finalMaj}</b> audit. 
-                        With a <b>${gpa} GPA</b> and ${completedCourses.length} course entries found, 
-                        I've updated your roadmap below.
-                    </p>`;
-            } else {
-                alert(`Sync worked, but no rows found in Supabase for ${finalMaj} at ${finalCol}. Check your table data!`);
-            }
-        }
+        // Auto-scroll to the dashboard
+        window.scrollTo({ top: dashboard.offsetTop - 20, behavior: 'smooth' });
     } else {
-        alert("Sync failed. No course codes found. Make sure you copied the Audit view.");
+        // ERROR HANDLING: If the database returns nothing
+        document.getElementById('recommendation-list').innerHTML = `
+            <div class="card" style="border: 2px dashed #ff4d4d; padding: 20px; text-align: center;">
+                <h4 style="color: #ff4d4d;">Data Not Found</h4>
+                <p>I detected <b>${detectedMaj}</b> at <b>${detectedCol}</b>, but no requirements were found in your Supabase table.</p>
+                <p><small>Check that your "major_requirements" table has rows for this college and major.</small></p>
+                <button onclick="location.reload()" class="upload-btn" style="background:#666;">Back to Sync</button>
+            </div>`;
     }
 });
 
@@ -129,7 +133,6 @@ function renderLockedDashboard(title, courses) {
     permitList.innerHTML = "";
 
     courses.forEach(course => {
-        // Logic: Available if no prereq OR the prereq exists in 'completedCourses'
         const isMet = !course.prerequisite || completedCourses.includes(course.prerequisite);
         const alreadyDone = completedCourses.includes(course.course_code);
         
@@ -140,10 +143,10 @@ function renderLockedDashboard(title, courses) {
                     <strong>${course.course_code}</strong> - ${course.course_name}
                     <br>
                     ${alreadyDone ? 
-                        '<span class="status-text" style="color:var(--success-green)">✅ Completed</span>' : 
+                        '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
                         (!isMet ? 
-                            `<span class="prereq-hint">🔒 Needs: ${course.prerequisite}</span>` : 
-                            '<span class="status-text" style="color:var(--available-blue)">🟢 Ready to Take</span>'
+                            `<span class="prereq-hint" style="color:#e74c3c">🔒 Needs: ${course.prerequisite}</span>` : 
+                            '<span class="status-text" style="color:#3498db">🟢 Ready to Take</span>'
                         )
                     }
                 </div>
