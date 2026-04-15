@@ -98,11 +98,39 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
 });
 
 /* ==========================================
-   4. UI & GLOBAL SEARCH SHORTCUT
+   4. UI & MANUAL EXPLORE & SEARCH CONTROLS
    ========================================== */
 const drawer = document.getElementById('advisorDrawer');
 document.getElementById('openChatBtn').addEventListener('click', () => drawer.classList.add('open'));
 document.getElementById('closeChat').addEventListener('click', () => drawer.classList.remove('open'));
+
+// NEW: Manual View Trigger (Fixes the Manual Explore bug)
+document.getElementById('viewMajorBtn').addEventListener('click', async function() {
+    const col = document.getElementById('collegeSelect').value;
+    const maj = document.getElementById('majorSelect').value;
+    
+    if (col && maj) {
+        completedCourses = []; // Clear previous sync data for manual exploration
+        const courses = await fetchMajorData(col, maj);
+        
+        if (courses && courses.length > 0) {
+            renderLockedDashboard(`${col} - ${maj}`, courses);
+            
+            // UI adjustments for manual mode
+            document.getElementById('openChatBtn').style.display = "block";
+            document.getElementById('chatHistory').innerHTML = `
+                <p class="bot-msg">
+                    Exploring the <b>${maj}</b> roadmap at <b>${col}</b>. 
+                    Since this is a manual look, I haven't tracked your progress yet. 
+                    Paste an audit to see what you've completed!
+                </p>`;
+        } else {
+            alert("No data found for this college and major combination.");
+        }
+    } else {
+        alert("Please select both a college and a major.");
+    }
+});
 
 function openGlobalSearch(courseCode) {
     const parts = courseCode.split(' ');
@@ -118,8 +146,10 @@ function openGlobalSearch(courseCode) {
    5. RENDERING LOGIC (With Search Button)
    ========================================== */
 function renderLockedDashboard(title, courses) {
+    // Crucial: ensure these visibility toggles run
     document.getElementById('input-area').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
+    
     document.getElementById('user-profile').innerText = `${title} Explorer`;
     document.getElementById('detected-major').innerText = `Path: ${title}`;
 
@@ -132,7 +162,6 @@ function renderLockedDashboard(title, courses) {
         const alreadyDone = completedCourses.includes(course.course_code);
         const isMet = !course.prerequisite || completedCourses.includes(course.prerequisite);
         
-        // Only show Search button for available, uncompleted courses
         const showSearch = !alreadyDone && isMet;
 
         const cardHTML = `
