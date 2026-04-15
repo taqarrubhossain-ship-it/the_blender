@@ -25,7 +25,7 @@ async function fetchMajorData(selectedCollege, selectedMajor) {
 }
 
 /* ==========================================
-   3. SMART SYNC & TRIGGER LOGIC (OPTIMIZED)
+   3. SMART SYNC & TRIGGER LOGIC (UNIVERSAL VERSION)
    ========================================== */
 document.getElementById('syncBtn').addEventListener('click', async function() {
     const rawText = document.getElementById('dwPaste').value;
@@ -37,62 +37,78 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         return;
     }
 
-    // A. Detect College (Look for CUNY keywords)
-    let detectedCol = "CCNY"; // Default to CCNY
+    // A. Detect College
+    let detectedCol = "CCNY"; 
     if (rawText.includes("Hunter")) detectedCol = "Hunter";
     else if (rawText.includes("Baruch")) detectedCol = "Baruch";
 
-    // B. Priority Major Detection (Checks Biology first to avoid conflicts)
+    // B. Priority Major Detection
     let detectedMaj = "";
     const lowerText = rawText.toLowerCase();
     if (lowerText.includes("biology")) detectedMaj = "Biology";
     else if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
     else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
-    else detectedMaj = "Biology"; // Fallback
+    else detectedMaj = "Biology";
 
-    // C. Course Detection (Optimized Regex for 3-5 digit codes)
-    const courseRegex = /([A-Z]{2,4}\s\d{3,5})/g;
-    const matches = rawText.match(courseRegex);
-    completedCourses = matches ? [...new Set(matches.map(c => c.trim()))] : [];
+    // C. UNIVERSAL PARSING LOGIC
+    // We split by line to check for "In-Progress" status per course
+    const lines = rawText.split('\n');
+    const tempCompleted = [];
+    
+    // This Regex captures Subject (Group 1) and Number (Group 2) with optional space
+    const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
+
+    lines.forEach(line => {
+        const match = line.match(universalRegex);
+        if (match) {
+            const subject = match[1].toUpperCase();
+            const number = match[2];
+            const normalizedCode = `${subject} ${number}`; // Always "SUBJ 12345" format
+
+            // Filter out In-Progress/Registered courses
+            const isInProgress = /In-Progress|IP|\(IP\)|Registered|REG/i.test(line);
+            
+            if (!isInProgress) {
+                tempCompleted.push(normalizedCode);
+            }
+        }
+    });
+
+    completedCourses = [...new Set(tempCompleted)];
+    console.log("Verified Completed Courses:", completedCourses);
 
     // D. Extract GPA
     const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
     const gpa = gpaMatch ? gpaMatch[1] : "N/A";
 
-    // E. VISUAL TRIGGER: Show dashboard immediately so user knows it's working
+    // E. Visual Update
     inputArea.classList.add('hidden');
     dashboard.classList.remove('hidden');
     document.getElementById('user-profile').innerText = `Syncing ${detectedMaj}...`;
-
-    // F. Sync Select Menus to match detected data
     document.getElementById('collegeSelect').value = detectedCol;
     document.getElementById('majorSelect').value = detectedMaj;
 
-    // G. FETCH & RENDER
+    // F. Fetch & Render
     const courses = await fetchMajorData(detectedCol, detectedMaj);
     
     if (courses && courses.length > 0) {
         renderLockedDashboard(`${detectedCol} - ${detectedMaj}`, courses);
         
-        // Success feedback in Advisor Chat
         document.getElementById('openChatBtn').style.display = "block";
         document.getElementById('chatHistory').innerHTML = `
             <p class="bot-msg">
-                I've analyzed your <b>${detectedCol} ${detectedMaj}</b> audit. 
-                With a <b>${gpa} GPA</b> and ${completedCourses.length} course entries found, 
-                I've updated your roadmap below.
+                Audit Analyzed! I found <b>${completedCourses.length}</b> completed requirements 
+                for your <b>${detectedMaj}</b> degree at <b>${detectedCol}</b>. 
+                Your GPA is <b>${gpa}</b>.
             </p>`;
 
-        // Auto-scroll to the dashboard
         window.scrollTo({ top: dashboard.offsetTop - 20, behavior: 'smooth' });
     } else {
-        // ERROR HANDLING: If the database returns nothing
         document.getElementById('recommendation-list').innerHTML = `
             <div class="card" style="border: 2px dashed #ff4d4d; padding: 20px; text-align: center;">
                 <h4 style="color: #ff4d4d;">Data Not Found</h4>
-                <p>I detected <b>${detectedMaj}</b> at <b>${detectedCol}</b>, but no requirements were found in your Supabase table.</p>
-                <p><small>Check that your "major_requirements" table has rows for this college and major.</small></p>
-                <button onclick="location.reload()" class="upload-btn" style="background:#666;">Back to Sync</button>
+                <p>Recognized ${detectedMaj} at ${detectedCol}, but database rows are missing.</p>
+                <button onclick="location.reload()" class="upload-btn">Try Again</button>
             </div>`;
     }
 });
@@ -104,17 +120,13 @@ const drawer = document.getElementById('advisorDrawer');
 document.getElementById('openChatBtn').addEventListener('click', () => drawer.classList.add('open'));
 document.getElementById('closeChat').addEventListener('click', () => drawer.classList.remove('open'));
 
-// Manual View Trigger
 document.getElementById('viewMajorBtn').addEventListener('click', async function() {
     const col = document.getElementById('collegeSelect').value;
     const maj = document.getElementById('majorSelect').value;
-    
     if (col && maj) {
-        completedCourses = []; // Clear previous sync data for manual exploration
+        completedCourses = []; 
         const courses = await fetchMajorData(col, maj);
         renderLockedDashboard(`${col} - ${maj}`, courses);
-    } else {
-        alert("Please select both a college and a major.");
     }
 });
 
@@ -133,8 +145,9 @@ function renderLockedDashboard(title, courses) {
     permitList.innerHTML = "";
 
     courses.forEach(course => {
-        const isMet = !course.prerequisite || completedCourses.includes(course.prerequisite);
+        // We check the normalized code against our completed list
         const alreadyDone = completedCourses.includes(course.course_code);
+        const isMet = !course.prerequisite || completedCourses.includes(course.prerequisite);
         
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isMet ? 'is-locked' : 'is-available')}">
@@ -153,10 +166,7 @@ function renderLockedDashboard(title, courses) {
             </div>
         `;
 
-        if (course.is_epermit) {
-            permitList.innerHTML += cardHTML;
-        } else {
-            recList.innerHTML += cardHTML;
-        }
+        if (course.is_epermit) permitList.innerHTML += cardHTML;
+        else recList.innerHTML += cardHTML;
     });
 }
