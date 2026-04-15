@@ -24,7 +24,7 @@
                 <div class="card">
                     <h3>Option A: Smart Sync</h3>
                     <p>Copy your <strong>DegreeWorks Audit</strong> (Ctrl+A, Ctrl+C) and paste it below.</p>
-                    <textarea id="dwPaste" placeholder="Paste audit text here..." style="width:100%; height:120px; border:1px solid #ccc; border-radius:8px; margin-bottom:10px; padding:10px; font-family: sans-serif;"></textarea>
+                    <textarea id="dwPaste" placeholder="Paste audit text here..."></textarea>
                     <button id="syncBtn" class="upload-btn">Sync My Degree</button>
                 </div>
 
@@ -53,8 +53,7 @@
 
         <section class="dashboard hidden" id="dashboard">
             <div class="status-bar">
-                <span id="detected-major">Major: Detecting...</span> | 
-                <span id="credits-count">Credits: Syncing...</span>
+                <span id="detected-major">Path: Detecting...</span>
             </div>
 
             <div class="legend" style="margin: 15px 0;">
@@ -74,6 +73,10 @@
                     <div id="epermit-list"></div>
                 </div>
             </div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <button onclick="location.reload()" class="secondary-btn" style="width: auto; padding: 10px 40px;">New Sync / Reset</button>
+            </div>
         </section>
 
         <div class="advisor-drawer" id="advisorDrawer">
@@ -82,7 +85,7 @@
                 <button id="closeChat" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">×</button>
             </div>
             <div class="chat-history" id="chatHistory">
-                <p class="bot-msg">Paste your audit to start! Once synced, I can help you plan your next Biology semester at CCNY.</p>
+                <p class="bot-msg">Paste your audit to start! Once synced, I'll analyze your roadmap for you.</p>
             </div>
             <div class="chat-input-wrapper">
                 <input type="text" id="chatInput" placeholder="Ask about your roadmap...">
