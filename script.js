@@ -25,7 +25,7 @@ async function fetchMajorData(selectedCollege, selectedMajor) {
 }
 
 /* ==========================================
-   3. SMART SYNC & TRIGGER LOGIC (UNIVERSAL VERSION)
+   3. SMART SYNC & TRIGGER LOGIC (UNIVERSAL + SEARCH)
    ========================================== */
 document.getElementById('syncBtn').addEventListener('click', async function() {
     const rawText = document.getElementById('dwPaste').value;
@@ -50,12 +50,9 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
     else detectedMaj = "Biology";
 
-    // C. UNIVERSAL PARSING LOGIC
-    // We split by line to check for "In-Progress" status per course
+    // C. UNIVERSAL PARSING (Handles BIO101 vs BIO 101 & Filters In-Progress)
     const lines = rawText.split('\n');
     const tempCompleted = [];
-    
-    // This Regex captures Subject (Group 1) and Number (Group 2) with optional space
     const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
 
     lines.forEach(line => {
@@ -63,7 +60,7 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         if (match) {
             const subject = match[1].toUpperCase();
             const number = match[2];
-            const normalizedCode = `${subject} ${number}`; // Always "SUBJ 12345" format
+            const normalizedCode = `${subject} ${number}`;
 
             // Filter out In-Progress/Registered courses
             const isInProgress = /In-Progress|IP|\(IP\)|Registered|REG/i.test(line);
@@ -75,7 +72,6 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     });
 
     completedCourses = [...new Set(tempCompleted)];
-    console.log("Verified Completed Courses:", completedCourses);
 
     // D. Extract GPA
     const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
@@ -93,45 +89,33 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     
     if (courses && courses.length > 0) {
         renderLockedDashboard(`${detectedCol} - ${detectedMaj}`, courses);
-        
         document.getElementById('openChatBtn').style.display = "block";
-        document.getElementById('chatHistory').innerHTML = `
-            <p class="bot-msg">
-                Audit Analyzed! I found <b>${completedCourses.length}</b> completed requirements 
-                for your <b>${detectedMaj}</b> degree at <b>${detectedCol}</b>. 
-                Your GPA is <b>${gpa}</b>.
-            </p>`;
-
+        document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> completed requirements. GPA: <b>${gpa}</b>.</p>`;
         window.scrollTo({ top: dashboard.offsetTop - 20, behavior: 'smooth' });
     } else {
-        document.getElementById('recommendation-list').innerHTML = `
-            <div class="card" style="border: 2px dashed #ff4d4d; padding: 20px; text-align: center;">
-                <h4 style="color: #ff4d4d;">Data Not Found</h4>
-                <p>Recognized ${detectedMaj} at ${detectedCol}, but database rows are missing.</p>
-                <button onclick="location.reload()" class="upload-btn">Try Again</button>
-            </div>`;
+        document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Data Not Found</h4><button onclick="location.reload()" class="upload-btn">Try Again</button></div>`;
     }
 });
 
 /* ==========================================
-   4. UI & CHAT CONTROLS
+   4. UI & GLOBAL SEARCH SHORTCUT
    ========================================== */
 const drawer = document.getElementById('advisorDrawer');
 document.getElementById('openChatBtn').addEventListener('click', () => drawer.classList.add('open'));
 document.getElementById('closeChat').addEventListener('click', () => drawer.classList.remove('open'));
 
-document.getElementById('viewMajorBtn').addEventListener('click', async function() {
-    const col = document.getElementById('collegeSelect').value;
-    const maj = document.getElementById('majorSelect').value;
-    if (col && maj) {
-        completedCourses = []; 
-        const courses = await fetchMajorData(col, maj);
-        renderLockedDashboard(`${col} - ${maj}`, courses);
-    }
-});
+function openGlobalSearch(courseCode) {
+    const parts = courseCode.split(' ');
+    const courseNum = parts.length > 1 ? parts[1] : parts[0];
+    
+    navigator.clipboard.writeText(courseNum).then(() => {
+        alert(`Course number ${courseNum} copied!\nOpening CUNY Global Search. Paste the number into the 'Course Number' field.`);
+        window.open('https://globalsearch.cuny.edu/CFGlobalSearchTool/search.jsp', '_blank');
+    });
+}
 
 /* ==========================================
-   5. RENDERING LOGIC
+   5. RENDERING LOGIC (With Search Button)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -145,13 +129,15 @@ function renderLockedDashboard(title, courses) {
     permitList.innerHTML = "";
 
     courses.forEach(course => {
-        // We check the normalized code against our completed list
         const alreadyDone = completedCourses.includes(course.course_code);
         const isMet = !course.prerequisite || completedCourses.includes(course.prerequisite);
         
+        // Only show Search button for available, uncompleted courses
+        const showSearch = !alreadyDone && isMet;
+
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isMet ? 'is-locked' : 'is-available')}">
-                <div>
+                <div style="flex: 1;">
                     <span class="category-tag">${course.category || 'Major Requirement'}</span><br>
                     <strong>${course.course_code}</strong> - ${course.course_name}
                     <br>
@@ -163,6 +149,11 @@ function renderLockedDashboard(title, courses) {
                         )
                     }
                 </div>
+                ${showSearch ? `
+                    <button class="search-btn" onclick="openGlobalSearch('${course.course_code}')">
+                        🔍 Find
+                    </button>
+                ` : ''}
             </div>
         `;
 
