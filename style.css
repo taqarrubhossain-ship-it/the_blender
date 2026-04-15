@@ -128,7 +128,7 @@ body {
     margin-bottom: 1rem;
     border-radius: 8px;
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Keeps text left and button right */
     align-items: center;
     text-align: left;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
@@ -153,6 +153,28 @@ body {
 
 .status-text { display: block; font-size: 0.8rem; font-weight: 600; margin-top: 5px; }
 .prereq-hint { display: block; font-size: 0.75rem; color: var(--locked-red); margin-top: 4px; font-weight: 500; }
+
+/* Global Search Button Styling */
+.search-btn {
+    background: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+    color: var(--cuny-blue);
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.search-btn:hover {
+    background: var(--cuny-blue);
+    color: white;
+    border-color: var(--cuny-blue);
+    transform: scale(1.05);
+}
 
 /* Advisor Drawer */
 .advisor-drawer {
@@ -226,9 +248,4 @@ body {
 .dot-locked { background-color: #ccc; }
 
 /* Utils */
-.hidden { display: none; }
-
-@media (max-width: 768px) {
-    .card-grid, .grid { grid-template-columns: 1fr; }
-    .advisor-drawer { width: 100%; right: -100%; }
-}
+.hidden { display: none !important;
