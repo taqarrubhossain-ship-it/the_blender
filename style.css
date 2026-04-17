@@ -1,3 +1,6 @@
+/* ==========================================
+   1. VARIABLES & RESET
+   ========================================== */
 :root {
     --cuny-blue: #1D3A6C;
     --accent-gold: #F2C94C;
@@ -13,10 +16,12 @@ body {
     background-color: var(--bg-light);
     color: var(--text-dark);
     margin: 0;
-    overflow-x: hidden; /* Prevents side-scrolling when drawer is closed */
+    overflow-x: hidden; 
 }
 
-/* Layout */
+/* ==========================================
+   2. LAYOUT & CONTAINERS
+   ========================================== */
 .navbar {
     background: var(--cuny-blue);
     color: white;
@@ -49,7 +54,9 @@ body {
     text-align: center;
 }
 
-/* Smart Sync Textarea */
+/* ==========================================
+   3. INPUTS & BUTTONS
+   ========================================== */
 #dwPaste {
     width: 100%;
     height: 120px;
@@ -68,7 +75,6 @@ body {
     box-shadow: 0 0 0 2px rgba(29, 58, 108, 0.1);
 }
 
-/* Interaction */
 .upload-btn, .secondary-btn, .add-btn, .chat-toggle-btn {
     display: inline-block;
     padding: 12px 24px;
@@ -108,7 +114,9 @@ body {
     background-color: white;
 }
 
-/* Dashboard Elements */
+/* ==========================================
+   4. DASHBOARD & 2026-2027 COURSE CARDS
+   ========================================== */
 .status-bar {
     background: #fff;
     padding: 10px 20px;
@@ -121,131 +129,24 @@ body {
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
 
-/* Course Cards & States */
 .course-card {
     background: white;
     padding: 1.2rem;
     margin-bottom: 1rem;
     border-radius: 8px;
     display: flex;
-    justify-content: space-between; /* Keeps text left and button right */
+    justify-content: space-between;
     align-items: center;
     text-align: left;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    border-left: 6px solid #ccc; /* Default Locked */
+    border-left: 6px solid #ccc; /* Default Locked State */
+    transition: all 0.3s ease;
 }
 
-.is-done { border-left-color: var(--success-green); background-color: #f6fff8; }
-.is-available { border-left-color: var(--available-blue); background-color: #f0f7ff; }
-.is-locked { border-left-color: #ccc; background-color: #f9f9f9; }
-
-.category-tag {
-    font-size: 0.65rem;
-    background: #eef1f4;
-    color: #555;
-    padding: 2px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    display: inline-block;
-    margin-bottom: 8px;
-    font-weight: bold;
+/* 2026-2027 State Logic Colors */
+.is-done { 
+    border-left-color: var(--success-green); 
+    background-color: #f6fff8; 
 }
-
-.status-text { display: block; font-size: 0.8rem; font-weight: 600; margin-top: 5px; }
-.prereq-hint { display: block; font-size: 0.75rem; color: var(--locked-red); margin-top: 4px; font-weight: 500; }
-
-/* Global Search Button Styling */
-.search-btn {
-    background: #f8f9fa;
-    border: 1px solid #ced4da;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-weight: 600;
-    color: var(--cuny-blue);
-    margin-left: 10px;
-    white-space: nowrap;
-}
-
-.search-btn:hover {
-    background: var(--cuny-blue);
-    color: white;
-    border-color: var(--cuny-blue);
-    transform: scale(1.05);
-}
-
-/* Advisor Drawer */
-.advisor-drawer {
-    position: fixed;
-    right: -350px;
-    top: 0;
-    width: 320px;
-    height: 100%;
-    background: white;
-    box-shadow: -5px 0 25px rgba(0,0,0,0.15);
-    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    flex-direction: column;
-    z-index: 1000;
-}
-
-.advisor-drawer.open { right: 0; }
-
-.advisor-header {
-    background: var(--cuny-blue);
-    color: white;
-    padding: 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.chat-history {
-    flex: 1;
-    padding: 1rem;
-    overflow-y: auto;
-    background: #fdfdfd;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.bot-msg {
-    background: #eef1f4;
-    padding: 12px;
-    border-radius: 12px;
-    border-bottom-left-radius: 2px;
-    font-size: 0.9rem;
-    max-width: 85%;
-    line-height: 1.4;
-}
-
-.chat-input-wrapper {
-    padding: 1rem;
-    border-top: 1px solid #eee;
-    display: flex;
-    gap: 10px;
-    background: white;
-}
-
-#chatInput {
-    flex: 1;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    outline: none;
-}
-
-#chatInput:focus { border-color: var(--cuny-blue); }
-
-/* Legend */
-.legend { margin-bottom: 15px; font-size: 0.85rem; display: flex; gap: 15px; }
-.status-dot { height: 12px; width: 12px; border-radius: 50%; display: inline-block; }
-.dot-done { background-color: var(--success-green); }
-.dot-available { background-color: var(--available-blue); }
-.dot-locked { background-color: #ccc; }
-
-/* Utils */
-.hidden { display: none !important;
+.is-available { 
+    border-left-
