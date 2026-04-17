@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUNY PathFinder | Universal Degree Planner</title>
+    <title>CUNY PathFinder | 2026-2027 Degree Planner</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,9 +14,9 @@
     </nav>
 
     <main class="container">
-        <header class="hero">
+        <header class="hero" style="text-align: center; margin-bottom: 3rem;">
             <h1>Your Degree, Optimized.</h1>
-            <p>Sync your DegreeWorks or explore any major manually to see your roadmap.</p>
+            <p>Sync your 2026-2027 DegreeWorks audit or explore any major roadmap manually.</p>
         </header>
 
         <section class="selection-area" id="input-area">
@@ -30,7 +30,7 @@
 
                 <div class="card">
                     <h3>Option B: Manual Explore</h3>
-                    <p>Select your college and major manually.</p>
+                    <p>Select a college and major to view the 2026-2027 roadmap.</p>
                     
                     <select id="collegeSelect" class="styled-select">
                         <option value="" disabled selected>Select College...</option>
@@ -56,36 +56,36 @@
                 <span id="detected-major">Path: Detecting...</span>
             </div>
 
-            <div class="legend" style="margin: 15px 0;">
+            <div class="legend">
                 <span><span class="status-dot dot-done"></span> Completed</span>
-                <span><span class="status-dot dot-available"></span> Available</span>
-                <span><span class="status-dot dot-locked"></span> Locked</span>
+                <span><span class="status-dot dot-available"></span> Ready to Take</span>
+                <span><span class="status-dot dot-locked"></span> Locked (Check Reqs)</span>
             </div>
             
             <div class="grid">
                 <div class="col">
-                    <h3>Major Requirements</h3>
+                    <h3>Major Core & Electives</h3>
                     <div id="recommendation-list"></div>
                 </div>
 
                 <div class="col">
-                    <h3>ePermit Opportunities</h3>
+                    <h3>ePermit & Specialized</h3>
                     <div id="epermit-list"></div>
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 2rem;">
-                <button onclick="location.reload()" class="secondary-btn" style="width: auto; padding: 10px 40px;">New Sync / Reset</button>
+            <div style="text-align: center; margin-top: 3rem;">
+                <button onclick="location.reload()" class="secondary-btn" style="width: auto; padding: 12px 50px;">Reset Dashboard</button>
             </div>
         </section>
 
         <div class="advisor-drawer" id="advisorDrawer">
             <div class="advisor-header">
-                <span>🎓 AI Academic Advisor</span>
-                <button id="closeChat" style="background:none; border:none; color:white; font-size:1.5rem; cursor:pointer;">×</button>
+                <span>🎓 2026 Academic Advisor</span>
+                <button id="closeChat" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer; line-height: 1;">&times;</button>
             </div>
             <div class="chat-history" id="chatHistory">
-                <p class="bot-msg">Paste your audit to start! Once synced, I'll analyze your roadmap for you.</p>
+                <p class="bot-msg">Welcome! Once you sync your audit, I can tell you which 2026-2027 prerequisites you're missing and suggest ePermit classes.</p>
             </div>
             <div class="chat-input-wrapper">
                 <input type="text" id="chatInput" placeholder="Ask about your roadmap...">
