@@ -38,7 +38,6 @@ body {
 
 .container { width: 90%; max-width: 1200px; margin: 2rem auto; }
 
-/* Selection Grid */
 .card-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -100,11 +99,6 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.upload-btn:hover, .secondary-btn:hover, .chat-toggle-btn:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.1);
-}
-
 .styled-select {
     width: 100%;
     padding: 12px;
@@ -115,7 +109,7 @@ body {
 }
 
 /* ==========================================
-   4. DASHBOARD & 2026-2027 COURSE CARDS
+   4. DASHBOARD & LEGEND (FIXED)
    ========================================== */
 .status-bar {
     background: #fff;
@@ -127,8 +121,43 @@ body {
     border: 1px solid #eee;
 }
 
+.legend {
+    background: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin: 15px 0 25px 0;
+    font-size: 0.85rem;
+    display: flex;
+    gap: 25px;
+    align-items: center;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.legend span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #555;
+    font-weight: 500;
+}
+
+.status-dot {
+    height: 12px;
+    width: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-done { background-color: var(--success-green); }
+.dot-available { background-color: var(--available-blue); }
+.dot-locked { background-color: #ccc; }
+
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
 
+/* ==========================================
+   5. COURSE CARDS & REQUISITES
+   ========================================== */
 .course-card {
     background: white;
     padding: 1.2rem;
@@ -139,14 +168,92 @@ body {
     align-items: center;
     text-align: left;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    border-left: 6px solid #ccc; /* Default Locked State */
+    border-left: 6px solid #ccc;
     transition: all 0.3s ease;
 }
 
-/* 2026-2027 State Logic Colors */
-.is-done { 
-    border-left-color: var(--success-green); 
-    background-color: #f6fff8; 
+.is-done { border-left-color: var(--success-green); background-color: #f6fff8; }
+.is-available { border-left-color: var(--available-blue); background-color: #f0f7ff; }
+.is-locked { border-left-color: #ccc; background-color: #f9f9f9; opacity: 0.9; }
+
+.req-details {
+    background: rgba(0,0,0,0.03);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin: 8px 0;
+    border: 1px solid #eee;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #666;
 }
-.is-available { 
-    border-left-
+
+.req-details b {
+    font-size: 0.65rem;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-tag {
+    font-size: 0.65rem;
+    background: #eef1f4;
+    color: #555;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+/* ==========================================
+   6. ADVISOR DRAWER & SEARCH
+   ========================================== */
+.search-btn {
+    background: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+    color: var(--cuny-blue);
+    margin-left: 10px;
+}
+
+.advisor-drawer {
+    position: fixed;
+    right: -350px;
+    top: 0;
+    width: 320px;
+    height: 100%;
+    background: white;
+    box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+.advisor-drawer.open { right: 0; }
+
+.chat-history {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bot-msg {
+    background: #eef1f4;
+    padding: 12px;
+    border-radius: 12px;
+    border-bottom-left-radius: 2px;
+    font-size: 0.9rem;
+    max-width: 85%;
+}
+
+.hidden { display: none !important; }
