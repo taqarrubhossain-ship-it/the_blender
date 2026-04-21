@@ -2,23 +2,25 @@
    1. CONNECTION CONFIG
    ========================================== */
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
+const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg'; // Keep your public key here
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
 
 /* ==========================================
-   2. DATABASE FUNCTIONS 
+   2. DATABASE FUNCTIONS (UPDATED FOR NEW SCHEMA)
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor) {
+    // We now fetch from the VIEW 'student_roadmap' which combines 
+    // rules, master details, and live availability into one call.
     const { data, error } = await db
-        .from('major_requirements') 
+        .from('student_roadmap') 
         .select('*')
-        .eq('college', selectedCollege)
+        .eq('college_name', selectedCollege)
         .eq('major_name', selectedMajor);
 
     if (error) {
-        console.error('Error fetching from Supabase:', error);
+        console.error('Error fetching from New Schema:', error);
         return null;
     }
     return data;
@@ -60,6 +62,7 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         if (match) {
             const subject = match[1].toUpperCase();
             const number = match[2];
+            // Standardizing format to "SUBJECT NUMBER" for matching
             const normalizedCode = `${subject} ${number}`;
             const isInProgress = /In-Progress|IP|\(IP\)|Registered|REG/i.test(line);
             
@@ -117,8 +120,8 @@ document.getElementById('viewMajorBtn').addEventListener('click', async function
 });
 
 function openGlobalSearch(courseCode) {
-    const parts = courseCode.split(' ');
-    const courseNum = parts.length > 1 ? parts[1] : parts[0];
+    // Regex to extract just the digits (e.g., "10100" from "BIO 10100")
+    const courseNum = courseCode.replace(/\D/g, "");
     
     navigator.clipboard.writeText(courseNum).then(() => {
         alert(`Course number ${courseNum} copied!\nOpening CUNY Global Search.`);
@@ -127,7 +130,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   5. RENDERING LOGIC (UPDATED FOR 2026 REQS)
+   5. RENDERING LOGIC (UPDATED FOR LIVE STATUS)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -137,19 +140,17 @@ function renderLockedDashboard(title, courses) {
     document.getElementById('detected-major').innerText = `Path: ${title}`;
 
     const recList = document.getElementById('recommendation-list');
-    const permitList = document.getElementById('epermit-list');
     recList.innerHTML = ""; 
-    permitList.innerHTML = "";
 
     courses.forEach(course => {
-        const alreadyDone = completedCourses.includes(course.course_code);
+        // Since course_id is "CCNY-BIO-10100", we convert it back to "BIO 10100" for matching
+        const displayCode = course.course_id.split('-').slice(1).join(' ');
+        const alreadyDone = completedCourses.includes(displayCode);
         
-        // Helper to check if a requirement string (e.g. "BIO 101, MATH 201") is met
+        // REQUISITE CHECKER
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
-            // Matches any course codes like "BIO 101" or "CSCI 13500"
             const reqCodes = reqStr.match(/[A-Z]{2,4}\s?\d{3,5}/g) || [];
-            if (reqCodes.length === 0) return true;
             return reqCodes.every(code => completedCourses.includes(code.replace(/\s/g, ' ')));
         };
 
@@ -157,36 +158,38 @@ function renderLockedDashboard(title, courses) {
         const isCoMet = checkMet(course.corequisites);
         const isFullyUnlocked = isPreMet && isCoMet;
         
-        const showSearch = !alreadyDone && isFullyUnlocked;
+        // LIVE AVAILABILITY STATUS (From your Python Harvester)
+        const isOfferedNow = course.is_fall_2026; 
 
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : 'is-available')}">
                 <div style="flex: 1;">
-                    <span class="category-tag">${course.category || 'Major Requirement'}</span><br>
-                    <strong>${course.course_code}</strong> - ${course.course_name}
+                    <span class="category-tag">${course.requirement_type}</span><br>
+                    <strong>${displayCode}</strong> - ${course.course_name}
                     
                     <div class="req-details" style="font-size: 0.75rem; margin: 5px 0; color: #666;">
-                        ${course.prerequisites && course.prerequisites !== 'None' ? `<b>Pre-req:</b> ${course.prerequisites}` : ''}
-                        ${course.corequisites && course.corequisites !== 'None' ? `<br><b>Co-req:</b> ${course.corequisites}` : ''}
+                        ${course.prerequisites ? `<b>Pre-req:</b> ${course.prerequisites}` : ''}
                     </div>
 
                     ${alreadyDone ? 
                         '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
                         (!isFullyUnlocked ? 
-                            `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: See Requisites Above</span>` : 
-                            '<span class="status-text" style="color:#3498db">🟢 Ready to Take</span>'
+                            `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Needs Prereqs</span>` : 
+                            (isOfferedNow ? 
+                                '<span class="status-text" style="color:#3498db">🟢 Ready to Take (Offered Fall 2026)</span>' : 
+                                '<span class="status-text" style="color:#f39c12">⏳ Wait: Not in Fall 2026 Schedule</span>'
+                            )
                         )
                     }
                 </div>
-                ${showSearch ? `
-                    <button class="search-btn" onclick="openGlobalSearch('${course.course_code}')">
+                ${!alreadyDone && isFullyUnlocked && isOfferedNow ? `
+                    <button class="search-btn" onclick="openGlobalSearch('${displayCode}')">
                         🔍 Find
                     </button>
                 ` : ''}
             </div>
         `;
 
-        if (course.is_epermit) permitList.innerHTML += cardHTML;
-        else recList.innerHTML += cardHTML;
+        recList.innerHTML += cardHTML;
     });
 }
