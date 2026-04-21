@@ -2,17 +2,16 @@
    1. CONNECTION CONFIG
    ========================================== */
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg'; // Keep your public key here
+const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
 
 /* ==========================================
-   2. DATABASE FUNCTIONS (UPDATED FOR NEW SCHEMA)
+   2. DATABASE FUNCTIONS (UPDATED FOR v2026.3)
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor) {
-    // We now fetch from the VIEW 'student_roadmap' which combines 
-    // rules, master details, and live availability into one call.
+    // Fetching from the roadmap view which now uses generic semester columns
     const { data, error } = await db
         .from('student_roadmap') 
         .select('*')
@@ -20,7 +19,7 @@ async function fetchMajorData(selectedCollege, selectedMajor) {
         .eq('major_name', selectedMajor);
 
     if (error) {
-        console.error('Error fetching from New Schema:', error);
+        console.error('Error fetching from Roadmap View:', error);
         return null;
     }
     return data;
@@ -62,7 +61,6 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         if (match) {
             const subject = match[1].toUpperCase();
             const number = match[2];
-            // Standardizing format to "SUBJECT NUMBER" for matching
             const normalizedCode = `${subject} ${number}`;
             const isInProgress = /In-Progress|IP|\(IP\)|Registered|REG/i.test(line);
             
@@ -91,7 +89,7 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     if (courses && courses.length > 0) {
         renderLockedDashboard(`${detectedCol} - ${detectedMaj}`, courses);
         document.getElementById('openChatBtn').style.display = "block";
-        document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">2026-2027 Audit Analyzed! Found <b>${completedCourses.length}</b> completed requirements. GPA: <b>${gpa}</b>.</p>`;
+        document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> completed requirements. GPA: <b>${gpa}</b>.</p>`;
     } else {
         document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Data Not Found</h4><button onclick="location.reload()" class="upload-btn">Try Again</button></div>`;
     }
@@ -120,9 +118,7 @@ document.getElementById('viewMajorBtn').addEventListener('click', async function
 });
 
 function openGlobalSearch(courseCode) {
-    // Regex to extract just the digits (e.g., "10100" from "BIO 10100")
     const courseNum = courseCode.replace(/\D/g, "");
-    
     navigator.clipboard.writeText(courseNum).then(() => {
         alert(`Course number ${courseNum} copied!\nOpening CUNY Global Search.`);
         window.open('https://globalsearch.cuny.edu/CFGlobalSearchTool/search.jsp', '_blank');
@@ -130,7 +126,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   5. RENDERING LOGIC (UPDATED FOR LIVE STATUS)
+   5. RENDERING LOGIC (FUTURE PROOF)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -143,11 +139,10 @@ function renderLockedDashboard(title, courses) {
     recList.innerHTML = ""; 
 
     courses.forEach(course => {
-        // Since course_id is "CCNY-BIO-10100", we convert it back to "BIO 10100" for matching
+        // Convert 'CCNY-BIO-10100' back to 'BIO 10100' for local matching
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
         
-        // REQUISITE CHECKER
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
             const reqCodes = reqStr.match(/[A-Z]{2,4}\s?\d{3,5}/g) || [];
@@ -158,8 +153,9 @@ function renderLockedDashboard(title, courses) {
         const isCoMet = checkMet(course.corequisites);
         const isFullyUnlocked = isPreMet && isCoMet;
         
-        // LIVE AVAILABILITY STATUS (From your Python Harvester)
-        const isOfferedNow = course.is_fall_2026; 
+        // Use the new future-proof column name from SQL
+        const isOfferedNow = course.is_offered_current; 
+        const semesterLabel = course.active_semester_code || "Current Semester";
 
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : 'is-available')}">
@@ -176,8 +172,8 @@ function renderLockedDashboard(title, courses) {
                         (!isFullyUnlocked ? 
                             `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Needs Prereqs</span>` : 
                             (isOfferedNow ? 
-                                '<span class="status-text" style="color:#3498db">🟢 Ready to Take (Offered Fall 2026)</span>' : 
-                                '<span class="status-text" style="color:#f39c12">⏳ Wait: Not in Fall 2026 Schedule</span>'
+                                `<span class="status-text" style="color:#3498db">🟢 Ready to Take (${semesterLabel})</span>` : 
+                                `<span class="status-text" style="color:#f39c12">⏳ Wait: Not in ${semesterLabel} Schedule</span>`
                             )
                         )
                     }
