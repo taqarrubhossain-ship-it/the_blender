@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CUNY PathFinder | 2026-2027 Degree Planner</title>
+    <title>CUNY PathFinder | Live Degree Planner</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
     <main class="container">
         <header class="hero" style="text-align: center; margin-bottom: 3rem;">
             <h1>Your Degree, Optimized.</h1>
-            <p>Sync your 2026-2027 DegreeWorks audit or explore any major roadmap manually.</p>
+            <p>Sync your DegreeWorks audit or explore any major roadmap with live availability.</p>
         </header>
 
         <section class="selection-area" id="input-area">
@@ -30,7 +30,7 @@
 
                 <div class="card">
                     <h3>Option B: Manual Explore</h3>
-                    <p>Select a college and major to view the 2026-2027 roadmap.</p>
+                    <p>Select a college and major to view the current live roadmap.</p>
                     
                     <select id="collegeSelect" class="styled-select">
                         <option value="" disabled selected>Select College...</option>
@@ -58,7 +58,8 @@
 
             <div class="legend">
                 <span><span class="status-dot dot-done"></span> Completed</span>
-                <span><span class="status-dot dot-available"></span> Ready to Take</span>
+                <span><span class="status-dot dot-available"></span> Ready & In Schedule</span>
+                <span><span class="status-dot dot-wait"></span> Unlocked but Not Offered</span>
                 <span><span class="status-dot dot-locked"></span> Locked (Check Reqs)</span>
             </div>
             
@@ -81,11 +82,11 @@
 
         <div class="advisor-drawer" id="advisorDrawer">
             <div class="advisor-header">
-                <span>🎓 2026 Academic Advisor</span>
+                <span>🎓 Academic Advisor</span>
                 <button id="closeChat" style="background:none; border:none; color:white; font-size:1.8rem; cursor:pointer; line-height: 1;">&times;</button>
             </div>
             <div class="chat-history" id="chatHistory">
-                <p class="bot-msg">Welcome! Once you sync your audit, I can tell you which 2026-2027 prerequisites you're missing and suggest ePermit classes.</p>
+                <p class="bot-msg">Welcome! Once you sync your audit, I can tell you which prerequisites you're missing and suggest live ePermit classes.</p>
             </div>
             <div class="chat-input-wrapper">
                 <input type="text" id="chatInput" placeholder="Ask about your roadmap...">
