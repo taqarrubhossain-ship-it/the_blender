@@ -6,9 +6,11 @@
     --accent-gold: #F2C94C;
     --success-green: #27AE60;
     --available-blue: #2196F3;
+    --wait-orange: #f39c12; /* NEW: For courses not in current schedule */
     --locked-red: #d93025;
     --bg-light: #F4F7F9;
     --text-dark: #333;
+    --border-gray: #ccc;
 }
 
 body {
@@ -109,7 +111,7 @@ body {
 }
 
 /* ==========================================
-   4. DASHBOARD & LEGEND (FIXED)
+   4. DASHBOARD & LEGEND
    ========================================== */
 .status-bar {
     background: #fff;
@@ -128,10 +130,10 @@ body {
     margin: 15px 0 25px 0;
     font-size: 0.85rem;
     display: flex;
-    gap: 25px;
+    flex-wrap: wrap;
+    gap: 20px;
     align-items: center;
     border: 1px solid #eee;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 .legend span {
@@ -151,12 +153,13 @@ body {
 
 .dot-done { background-color: var(--success-green); }
 .dot-available { background-color: var(--available-blue); }
-.dot-locked { background-color: #ccc; }
+.dot-wait { background-color: var(--wait-orange); } /* NEW */
+.dot-locked { background-color: var(--border-gray); }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
 
 /* ==========================================
-   5. COURSE CARDS & REQUISITES
+   5. COURSE CARDS (UPDATED FOR LIVE DATA)
    ========================================== */
 .course-card {
     background: white;
@@ -168,13 +171,44 @@ body {
     align-items: center;
     text-align: left;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    border-left: 6px solid #ccc;
+    border-left: 6px solid var(--border-gray);
     transition: all 0.3s ease;
 }
 
-.is-done { border-left-color: var(--success-green); background-color: #f6fff8; }
-.is-available { border-left-color: var(--available-blue); background-color: #f0f7ff; }
-.is-locked { border-left-color: #ccc; background-color: #f9f9f9; opacity: 0.9; }
+.is-done { 
+    border-left-color: var(--success-green); 
+    background-color: #f6fff8; 
+}
+
+.is-available { 
+    border-left-color: var(--available-blue); 
+    background-color: #f0f7ff; 
+}
+
+/* Styled specifically for classes with prereqs met but not offered */
+.course-card.is-available:has(.status-text[style*="color:#f39c12"]) {
+    border-left-color: var(--wait-orange);
+    background-color: #fffaf0;
+}
+
+.is-locked { 
+    border-left-color: var(--border-gray); 
+    background-color: #f9f9f9; 
+    opacity: 0.85; 
+}
+
+.status-text {
+    font-weight: bold;
+    display: inline-block;
+    margin-top: 5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* Backgrounds for status tags */
+.status-text[style*="color:#3498db"] { background: #e1f5fe; } /* Blue label */
+.status-text[style*="color:#f39c12"] { background: #fff3e0; } /* Orange label */
 
 .req-details {
     background: rgba(0,0,0,0.03);
@@ -184,14 +218,6 @@ body {
     border: 1px solid #eee;
     font-size: 0.75rem;
     line-height: 1.4;
-    color: #666;
-}
-
-.req-details b {
-    font-size: 0.65rem;
-    color: #444;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .category-tag {
@@ -203,24 +229,24 @@ body {
     text-transform: uppercase;
     display: inline-block;
     margin-bottom: 8px;
-    font-weight: bold;
 }
 
 /* ==========================================
    6. ADVISOR DRAWER & SEARCH
    ========================================== */
 .search-btn {
-    background: #f8f9fa;
-    border: 1px solid #ced4da;
+    background: var(--available-blue);
+    border: none;
     border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.75rem;
+    padding: 8px 16px;
+    font-size: 0.8rem;
     cursor: pointer;
     transition: all 0.2s;
-    font-weight: 600;
-    color: var(--cuny-blue);
-    margin-left: 10px;
+    font-weight: bold;
+    color: white;
 }
+
+.search-btn:hover { background: #1976D2; transform: scale(1.05); }
 
 .advisor-drawer {
     position: fixed;
@@ -230,30 +256,12 @@ body {
     height: 100%;
     background: white;
     box-shadow: -5px 0 25px rgba(0,0,0,0.15);
-    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: right 0.3s ease;
     display: flex;
     flex-direction: column;
     z-index: 1000;
 }
 
 .advisor-drawer.open { right: 0; }
-
-.chat-history {
-    flex: 1;
-    padding: 1rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.bot-msg {
-    background: #eef1f4;
-    padding: 12px;
-    border-radius: 12px;
-    border-bottom-left-radius: 2px;
-    font-size: 0.9rem;
-    max-width: 85%;
-}
 
 .hidden { display: none !important; }
