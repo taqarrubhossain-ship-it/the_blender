@@ -6,18 +6,22 @@
     --accent-gold: #F2C94C;
     --success-green: #27AE60;
     --available-blue: #2196F3;
-    --wait-orange: #f39c12; /* NEW: For courses not in current schedule */
+    --wait-orange: #f39c12;
     --locked-red: #d93025;
     --bg-light: #F4F7F9;
     --text-dark: #333;
     --border-gray: #ccc;
+    --glass-white: rgba(255, 255, 255, 0.85);
+    --card-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.1);
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-light);
+    /* Subtle gradient background for depth */
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     color: var(--text-dark);
     margin: 0;
+    min-height: 100vh;
     overflow-x: hidden; 
 }
 
@@ -34,11 +38,12 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 .logo span { font-weight: bold; color: var(--accent-gold); }
 
-.container { width: 90%; max-width: 1200px; margin: 2rem auto; }
+.container { width: 90%; max-width: 1100px; margin: 2rem auto; }
 
 .card-grid {
     display: grid;
@@ -48,11 +53,13 @@ body {
 }
 
 .card {
-    background: white;
+    background: var(--glass-white);
+    backdrop-filter: blur(10px);
     padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
     text-align: center;
+    border: 1px solid rgba(255,255,255,0.3);
 }
 
 /* ==========================================
@@ -81,7 +88,7 @@ body {
     padding: 12px 24px;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: bold;
     text-decoration: none;
     border: none;
@@ -92,14 +99,7 @@ body {
 .secondary-btn { background: white; border: 2px solid var(--cuny-blue); color: var(--cuny-blue); width: 100%; }
 .add-btn { background: var(--success-green); color: white; padding: 8px 16px; }
 
-.chat-toggle-btn {
-    background: var(--accent-gold);
-    color: var(--cuny-blue);
-    border-radius: 50px;
-    padding: 8px 20px;
-    font-size: 0.9rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
+.chat-toggle-btn:hover, .upload-btn:hover { transform: scale(1.02); }
 
 .styled-select {
     width: 100%;
@@ -111,29 +111,32 @@ body {
 }
 
 /* ==========================================
-   4. DASHBOARD & LEGEND
+   4. DASHBOARD & LEGEND (POLISHED)
    ========================================== */
 .status-bar {
-    background: #fff;
-    padding: 10px 20px;
-    border-radius: 8px;
+    background: var(--glass-white);
+    padding: 12px 24px;
+    border-radius: 50px;
     margin-bottom: 20px;
     font-weight: bold;
     display: inline-block;
-    border: 1px solid #eee;
+    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: var(--card-shadow);
 }
 
 .legend {
-    background: #fff;
-    padding: 12px 20px;
-    border-radius: 8px;
-    margin: 15px 0 25px 0;
+    background: var(--glass-white);
+    backdrop-filter: blur(5px);
+    padding: 15px 30px;
+    border-radius: 12px;
+    margin: 15px 0 40px 0;
     font-size: 0.85rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
-    align-items: center;
-    border: 1px solid #eee;
+    gap: 25px;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.5);
+    box-shadow: var(--card-shadow);
 }
 
 .legend span {
@@ -152,116 +155,68 @@ body {
 }
 
 .dot-done { background-color: var(--success-green); }
-.dot-available { background-color: var(--available-blue); }
-.dot-wait { background-color: var(--wait-orange); } /* NEW */
+.dot-available { background-color: var(--available-blue); animation: pulse-blue 2s infinite; }
+.dot-wait { background-color: var(--wait-orange); }
 .dot-locked { background-color: var(--border-gray); }
+
+@keyframes pulse-blue {
+    0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(33, 150, 243, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); }
+}
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
 
 /* ==========================================
-   5. COURSE CARDS (UPDATED FOR LIVE DATA)
+   5. COURSE CARDS (GLASS EFFECT)
    ========================================== */
 .course-card {
-    background: white;
-    padding: 1.2rem;
-    margin-bottom: 1rem;
-    border-radius: 8px;
+    background: var(--glass-white);
+    backdrop-filter: blur(10px);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     text-align: left;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: var(--card-shadow);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-left: 6px solid var(--border-gray);
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.is-done { 
-    border-left-color: var(--success-green); 
-    background-color: #f6fff8; 
+.course-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.15);
 }
 
-.is-available { 
-    border-left-color: var(--available-blue); 
-    background-color: #f0f7ff; 
+.course-card strong {
+    font-size: 1.1rem;
+    color: var(--cuny-blue);
+    letter-spacing: -0.2px;
 }
 
-/* Styled specifically for classes with prereqs met but not offered */
+.is-done { border-left-color: var(--success-green); background-color: rgba(246, 255, 248, 0.8); }
+.is-available { border-left-color: var(--available-blue); background-color: rgba(240, 247, 255, 0.8); }
+.is-locked { border-left-color: var(--border-gray); opacity: 0.85; }
+
+/* Orange highlight for met-but-not-offered classes */
 .course-card.is-available:has(.status-text[style*="color:#f39c12"]) {
     border-left-color: var(--wait-orange);
-    background-color: #fffaf0;
-}
-
-.is-locked { 
-    border-left-color: var(--border-gray); 
-    background-color: #f9f9f9; 
-    opacity: 0.85; 
+    background-color: rgba(255, 250, 240, 0.8);
 }
 
 .status-text {
-    font-weight: bold;
-    display: inline-block;
-    margin-top: 5px;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-}
-
-/* Backgrounds for status tags */
-.status-text[style*="color:#3498db"] { background: #e1f5fe; } /* Blue label */
-.status-text[style*="color:#f39c12"] { background: #fff3e0; } /* Orange label */
-
-.req-details {
-    background: rgba(0,0,0,0.03);
-    padding: 6px 10px;
-    border-radius: 4px;
-    margin: 8px 0;
-    border: 1px solid #eee;
     font-size: 0.75rem;
-    line-height: 1.4;
-}
-
-.category-tag {
-    font-size: 0.65rem;
-    background: #eef1f4;
-    color: #555;
-    padding: 2px 8px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    display: inline-block;
-    margin-bottom: 8px;
-}
-
-/* ==========================================
-   6. ADVISOR DRAWER & SEARCH
-   ========================================== */
-.search-btn {
-    background: var(--available-blue);
-    border: none;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 6px 12px;
+    border-radius: 50px;
     font-weight: bold;
-    color: white;
-}
-
-.search-btn:hover { background: #1976D2; transform: scale(1.05); }
-
-.advisor-drawer {
-    position: fixed;
-    right: -350px;
-    top: 0;
-    width: 320px;
-    height: 100%;
-    background: white;
-    box-shadow: -5px 0 25px rgba(0,0,0,0.15);
-    transition: right 0.3s ease;
     display: flex;
-    flex-direction: column;
-    z-index: 1000;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin-top: 12px;
 }
 
-.advisor-drawer.open { right: 0; }
-
-.hidden { display: none !important; }
+.status-text[style*="color:#3498db"] { background: #e1f5fe; color: #0288d1 !important
