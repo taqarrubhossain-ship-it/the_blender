@@ -8,10 +8,10 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let completedCourses = [];
 
 /* ==========================================
-   2. DATABASE FUNCTIONS (UPDATED FOR v2026.3)
+   2. DATABASE FUNCTIONS (UPDATED FOR v2026.4)
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor) {
-    // Fetching from the roadmap view which now uses generic semester columns
+    // Fetching from the roadmap view which now uses fusion logic (Live + Rules)
     const { data, error } = await db
         .from('student_roadmap') 
         .select('*')
@@ -126,7 +126,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   5. RENDERING LOGIC (FUTURE PROOF)
+   5. RENDERING LOGIC (SYNCED WITH FUSION SCHEMA)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -139,23 +139,25 @@ function renderLockedDashboard(title, courses) {
     recList.innerHTML = ""; 
 
     courses.forEach(course => {
-        // Convert 'CCNY-BIO-10100' back to 'BIO 10100' for local matching
+        // Format display (e.g., 'BIO 10100')
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
         
+        // Data Mapping from SQL View
+        const isOfferedNow = course.is_offered_current; 
+        const semesterLabel = course.active_semester_code || "Fall 2026";
+        const ruleText = course.prereq_logic || course.prerequisites || "None";
+
+        // Prerequisite Matching Logic
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
             const reqCodes = reqStr.match(/[A-Z]{2,4}\s?\d{3,5}/g) || [];
             return reqCodes.every(code => completedCourses.includes(code.replace(/\s/g, ' ')));
         };
 
-        const isPreMet = checkMet(course.prerequisites);
+        const isPreMet = checkMet(ruleText);
         const isCoMet = checkMet(course.corequisites);
         const isFullyUnlocked = isPreMet && isCoMet;
-        
-        // Use the new future-proof column name from SQL
-        const isOfferedNow = course.is_offered_current; 
-        const semesterLabel = course.active_semester_code || "Current Semester";
 
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : 'is-available')}">
@@ -164,7 +166,7 @@ function renderLockedDashboard(title, courses) {
                     <strong>${displayCode}</strong> - ${course.course_name}
                     
                     <div class="req-details" style="font-size: 0.75rem; margin: 5px 0; color: #666;">
-                        ${course.prerequisites ? `<b>Pre-req:</b> ${course.prerequisites}` : ''}
+                        <b>Rules:</b> ${ruleText}
                     </div>
 
                     ${alreadyDone ? 
@@ -172,7 +174,7 @@ function renderLockedDashboard(title, courses) {
                         (!isFullyUnlocked ? 
                             `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Needs Prereqs</span>` : 
                             (isOfferedNow ? 
-                                `<span class="status-text" style="color:#3498db">🟢 Ready to Take (${semesterLabel})</span>` : 
+                                `<span class="status-text" style="color:#2196F3">● Ready to Take (${semesterLabel})</span>` : 
                                 `<span class="status-text" style="color:#f39c12">⏳ Wait: Not in ${semesterLabel} Schedule</span>`
                             )
                         )
