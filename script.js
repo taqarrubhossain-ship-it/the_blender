@@ -125,7 +125,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   5. RENDERING LOGIC (SYNCED WITH CATALOG SCHEMA)
+   5. RENDERING LOGIC (CATALOG SYNCED)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -138,15 +138,12 @@ function renderLockedDashboard(title, courses) {
     recList.innerHTML = ""; 
 
     courses.forEach(course => {
-        // Standardize display (e.g., 'BIO 10100')
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
         
-        // Data Mapping: Uses prereq_logic (Coursicle) first
         const ruleText = course.prereq_logic || course.prerequisites || "None";
         const semesterLabel = course.active_semester_code || "Fall 2026";
 
-        // Advanced Prerequisite Matching (handles varied spacing)
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
             const reqCodes = reqStr.match(/[A-Z]{2,4}\s?\d{3,5}/g) || [];
@@ -189,7 +186,22 @@ function renderLockedDashboard(title, courses) {
                 ` : ''}
             </div>
         `;
-
         recList.innerHTML += cardHTML;
     });
+}
+
+/* ==========================================
+   6. ADMIN TOOL: CATALOG TO SQL PARSER
+   ========================================== */
+function generateCatalogSQL(college, major, rawCatalogText) {
+    const courseRegex = /([A-Z]{2,4})\s?(\d{3,5})/g;
+    const matches = [...rawCatalogText.matchAll(courseRegex)];
+    const uniqueCourses = [...new Set(matches.map(m => `${college}-${m[1].toUpperCase()}-${m[2]}`))];
+    
+    let sql = `INSERT INTO major_rules (college_name, major_name, course_id, requirement_type, is_catalog_verified)\nVALUES `;
+    sql += uniqueCourses.map(id => `('${college}', '${major}', '${id}', 'Major Core', true)`).join(',\n');
+    sql += `\nON CONFLICT (college_name, major_name, course_id) DO UPDATE SET is_catalog_verified = true;`;
+    
+    console.log("%c PASTE THIS INTO SUPABASE SQL EDITOR:", "color: #2196F3; font-weight: bold;");
+    console.log(sql);
 }
