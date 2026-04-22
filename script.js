@@ -8,10 +8,9 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let completedCourses = [];
 
 /* ==========================================
-   2. DATABASE FUNCTIONS (UPDATED FOR v2026.4)
+   2. DATABASE FUNCTIONS
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor) {
-    // Fetching from the roadmap view which now uses fusion logic (Live + Rules)
     const { data, error } = await db
         .from('student_roadmap') 
         .select('*')
@@ -51,7 +50,7 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
     else detectedMaj = "Biology";
 
-    // C. UNIVERSAL PARSING
+    // C. UNIVERSAL PARSING (Captures subjects like CSCI, PSY, BIO)
     const lines = rawText.split('\n');
     const tempCompleted = [];
     const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
@@ -91,7 +90,7 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         document.getElementById('openChatBtn').style.display = "block";
         document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> completed requirements. GPA: <b>${gpa}</b>.</p>`;
     } else {
-        document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Data Not Found</h4><button onclick="location.reload()" class="upload-btn">Try Again</button></div>`;
+        document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Major Data Not Found</h4><p>Make sure the SQL expansion script was run in Supabase.</p></div>`;
     }
 });
 
@@ -126,7 +125,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   5. RENDERING LOGIC (SYNCED WITH FUSION SCHEMA)
+   5. RENDERING LOGIC (SYNCED WITH CATALOG SCHEMA)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -139,20 +138,23 @@ function renderLockedDashboard(title, courses) {
     recList.innerHTML = ""; 
 
     courses.forEach(course => {
-        // Format display (e.g., 'BIO 10100')
+        // Standardize display (e.g., 'BIO 10100')
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
         
-        // Data Mapping from SQL View
-        const isOfferedNow = course.is_offered_current; 
-        const semesterLabel = course.active_semester_code || "Fall 2026";
+        // Data Mapping: Uses prereq_logic (Coursicle) first
         const ruleText = course.prereq_logic || course.prerequisites || "None";
+        const semesterLabel = course.active_semester_code || "Fall 2026";
 
-        // Prerequisite Matching Logic
+        // Advanced Prerequisite Matching (handles varied spacing)
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
             const reqCodes = reqStr.match(/[A-Z]{2,4}\s?\d{3,5}/g) || [];
-            return reqCodes.every(code => completedCourses.includes(code.replace(/\s/g, ' ')));
+            if (reqCodes.length === 0) return true;
+            return reqCodes.every(code => {
+                const normalized = code.replace(/\s/g, ' '); 
+                return completedCourses.includes(normalized);
+            });
         };
 
         const isPreMet = checkMet(ruleText);
@@ -160,27 +162,27 @@ function renderLockedDashboard(title, courses) {
         const isFullyUnlocked = isPreMet && isCoMet;
 
         const cardHTML = `
-            <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : 'is-available')}">
+            <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : (course.is_offered_current ? 'is-available' : 'is-wait'))}">
                 <div style="flex: 1;">
-                    <span class="category-tag">${course.requirement_type}</span><br>
+                    <span class="category-tag">${course.requirement_type || "Major Core"}</span><br>
                     <strong>${displayCode}</strong> - ${course.course_name}
                     
-                    <div class="req-details" style="font-size: 0.75rem; margin: 5px 0; color: #666;">
-                        <b>Rules:</b> ${ruleText}
+                    <div class="req-details" style="font-size: 0.75rem; margin: 8px 0; color: #555; background: #f4f4f4; padding: 5px; border-radius: 4px;">
+                        <b>Prerequisites:</b> ${ruleText}
                     </div>
 
                     ${alreadyDone ? 
                         '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
                         (!isFullyUnlocked ? 
-                            `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Needs Prereqs</span>` : 
-                            (isOfferedNow ? 
-                                `<span class="status-text" style="color:#2196F3">● Ready to Take (${semesterLabel})</span>` : 
-                                `<span class="status-text" style="color:#f39c12">⏳ Wait: Not in ${semesterLabel} Schedule</span>`
+                            `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Missing Prereqs</span>` : 
+                            (course.is_offered_current ? 
+                                `<span class="status-text" style="color:#2196F3">● Available (${semesterLabel})</span>` : 
+                                `<span class="status-text" style="color:#f39c12">⏳ Not in ${semesterLabel} Schedule</span>`
                             )
                         )
                     }
                 </div>
-                ${!alreadyDone && isFullyUnlocked && isOfferedNow ? `
+                ${!alreadyDone && isFullyUnlocked && course.is_offered_current ? `
                     <button class="search-btn" onclick="openGlobalSearch('${displayCode}')">
                         🔍 Find
                     </button>
