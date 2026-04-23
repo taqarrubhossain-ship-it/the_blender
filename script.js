@@ -56,12 +56,10 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         return;
     }
 
-    // A. Detect College
     let detectedCol = "CCNY"; 
     if (rawText.includes("Hunter")) detectedCol = "Hunter";
     else if (rawText.includes("Baruch")) detectedCol = "Baruch";
 
-    // B. Priority Major & Degree Detection
     let detectedMaj = "Biology";
     const lowerText = rawText.toLowerCase();
     if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
@@ -69,7 +67,6 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
 
     let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
 
-    // C. UNIVERSAL PARSING
     const lines = rawText.split('\n');
     const tempCompleted = [];
     const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
@@ -86,11 +83,9 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
 
     completedCourses = [...new Set(tempCompleted)];
 
-    // D. Extract GPA
     const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
     const gpa = gpaMatch ? gpaMatch[1] : "N/A";
 
-    // E. UI Transition
     inputArea.classList.add('hidden');
     dashboard.classList.remove('hidden');
     statusHeader.innerText = `Analyzing ${detectedMaj}...`;
@@ -98,7 +93,6 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     document.getElementById('collegeSelect').value = detectedCol;
     document.getElementById('majorSelect').value = detectedMaj;
 
-    // F. Fetch & Render
     const courses = await fetchMajorData(detectedCol, detectedMaj, detectedDeg);
     
     if (courses && courses.length > 0) {
@@ -110,7 +104,7 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         document.getElementById('recommendation-list').innerHTML = `
             <div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;">
                 <h4>Catalog Data Not Found</h4>
-                <p>Run the SQL Import for ${detectedCol} ${detectedMaj} first.</p>
+                <p>Run autoIngestCatalog() for ${detectedCol} ${detectedMaj}.</p>
             </div>`;
     }
 });
@@ -137,7 +131,7 @@ document.getElementById('viewMajorBtn').addEventListener('click', async function
             document.getElementById('openChatBtn').style.display = "block";
         } else {
             statusHeader.innerText = "No Data Found";
-            alert("This major hasn't been imported into the database yet.");
+            alert("This major hasn't been imported yet.");
         }
     }
 });
@@ -191,46 +185,53 @@ function renderLockedDashboard(title, courses) {
                 <div style="flex: 1;">
                     <span class="category-tag">${course.requirement_type || "Major Core"}</span><br>
                     <strong>${displayCode}</strong> - ${course.course_name}
-                    
                     <div class="req-details" style="font-size: 0.75rem; margin: 8px 0; color: #555; background: #f4f4f4; padding: 5px; border-radius: 4px;">
                         <b>Prerequisites:</b> ${ruleText}
                     </div>
-
-                    ${alreadyDone ? 
-                        '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
-                        (!isFullyUnlocked ? 
-                            `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Missing Prereqs</span>` : 
-                            (course.is_offered_current ? 
-                                `<span class="status-text" style="color:#2196F3">● Available (${semesterLabel})</span>` : 
-                                `<span class="status-text" style="color:#f39c12">⏳ Not in ${semesterLabel} Schedule</span>`
-                            )
-                        )
-                    }
+                    ${alreadyDone ? '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
+                    (!isFullyUnlocked ? `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Missing Prereqs</span>` : 
+                    (course.is_offered_current ? `<span class="status-text" style="color:#2196F3">● Available (${semesterLabel})</span>` : 
+                    `<span class="status-text" style="color:#f39c12">⏳ Not in ${semesterLabel} Schedule</span>`))}
                 </div>
-                ${!alreadyDone && isFullyUnlocked && course.is_offered_current ? `
-                    <button class="search-btn" onclick="openGlobalSearch('${displayCode}')">🔍 Find</button>
-                ` : ''}
-            </div>
-        `;
+                ${!alreadyDone && isFullyUnlocked && course.is_offered_current ? `<button class="search-btn" onclick="openGlobalSearch('${displayCode}')">🔍 Find</button>` : ''}
+            </div>`;
         recList.innerHTML += cardHTML;
     });
 }
 
 /* ==========================================
-   6. ADMIN TOOL: UNIVERSAL CATALOG PARSER
+   6. AUTO-INGESTOR (NO MANUAL SQL REQUIRED)
    ========================================== */
-function generateCatalogSQL(college, major, degree, url, rawCatalogText) {
+async function autoIngestCatalog(college, major, degree, url, rawCatalogText) {
+    console.log(`🚀 Starting Auto-Ingest for ${college} ${major}...`);
+    
     const courseRegex = /([A-Z]{2,4})\s?(\d{3,5})/g;
     const matches = [...rawCatalogText.matchAll(courseRegex)];
-    const uniqueCourses = [...new Set(matches.map(m => `${college}-${m[1].toUpperCase()}-${m[2]}`))];
-    
-    if (uniqueCourses.length === 0) return console.error("No valid courses found!");
+    const uniqueCourseIDs = [...new Set(matches.map(m => `${college}-${m[1].toUpperCase()}-${m[2]}`))];
 
-    let sql = `-- Data Import: ${college} ${major} (${degree})\n`;
-    sql += `INSERT INTO major_rules (college_name, major_name, degree_type, program_url, course_id, requirement_type, is_catalog_verified)\nVALUES `;
-    sql += uniqueCourses.map(id => `('${college}', '${major}', '${degree}', '${url}', '${id}', 'Major Core', true)`).join(',\n');
-    sql += `\nON CONFLICT (college_name, major_name, degree_type, course_id) DO UPDATE SET is_catalog_verified = true, program_url = EXCLUDED.program_url;`;
-    
-    console.log("%c COPY THIS TO SUPABASE:", "color: #4CAF50; font-weight: bold;");
-    console.log(sql);
+    if (uniqueCourseIDs.length === 0) {
+        console.error("❌ No courses found in text.");
+        return;
+    }
+
+    const rowsToInsert = uniqueCourseIDs.map(id => ({
+        college_name: college,
+        major_name: major,
+        degree_type: degree,
+        program_url: url,
+        course_id: id,
+        requirement_type: 'Major Core',
+        is_catalog_verified: true
+    }));
+
+    const { error } = await db
+        .from('major_rules')
+        .upsert(rowsToInsert, { onConflict: 'college_name,major_name,degree_type,course_id' });
+
+    if (error) {
+        console.error("❌ Ingestion Failed:", error.message);
+    } else {
+        console.log("✅ Catalog Synced! Refresh the page to see changes.");
+        alert(`${major} is now live.`);
+    }
 }
