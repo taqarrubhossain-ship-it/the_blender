@@ -1,19 +1,62 @@
 /* ==========================================
-   1. CONNECTION CONFIG
+   1. CONNECTION & SESSION CONFIG
    ========================================== */
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
+let currentUser = null;
+
+// NEW: Auth Listener to handle Guest vs Account status
+db.auth.onAuthStateChange((event, session) => {
+    currentUser = session?.user || null;
+    const profileHeader = document.getElementById('user-profile');
+    if (currentUser) {
+        console.log("Logged in as:", currentUser.email);
+        // You can update UI elements here to show the user is logged in
+    }
+});
 
 /* ==========================================
-   2. DATABASE FUNCTIONS
+   2. ROUTING LOGIC (Back Button Fix)
+   ========================================== */
+function updateURL(college, major) {
+    const newUrl = `${window.location.pathname}?college=${encodeURIComponent(college)}&major=${encodeURIComponent(major)}`;
+    window.history.pushState({ college, major }, '', newUrl);
+}
+
+// Automatically load data if the URL has parameters (for back button/refresh)
+async function autoLoadFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const col = params.get('college');
+    const maj = params.get('major');
+    
+    if (col && maj) {
+        const courses = await fetchMajorData(col, maj);
+        if (courses && courses.length > 0) {
+            renderLockedDashboard(`${col} - ${maj}`, courses);
+        }
+    }
+}
+
+window.onpopstate = function(event) {
+    if (event.state) {
+        autoLoadFromURL();
+    } else {
+        location.reload(); // Reset to home if they go all the way back
+    }
+};
+
+// Initial run
+autoLoadFromURL();
+
+/* ==========================================
+   3. DATABASE FUNCTIONS
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.') {
     console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor} | ${degreeType}`);
     
-    // Primary Fetch: Specific Degree Type
     let { data, error } = await db
         .from('student_roadmap') 
         .select('*')
@@ -26,9 +69,8 @@ async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.
         return null;
     }
 
-    // FAIL-SAFE: If specific degree returns nothing, fetch any variation of that major
     if (!data || data.length === 0) {
-        console.warn(`No ${degreeType} found. Retrying with broad major search...`);
+        console.warn(`No ${degreeType} found. Retrying broad search...`);
         const { data: fallbackData, error: fallbackError } = await db
             .from('student_roadmap')
             .select('*')
@@ -38,12 +80,11 @@ async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.
         if (fallbackError) return null;
         return fallbackData;
     }
-
     return data;
 }
 
 /* ==========================================
-   3. SMART SYNC & TRIGGER LOGIC
+   4. SMART SYNC & TRIGGER LOGIC
    ========================================== */
 document.getElementById('syncBtn').addEventListener('click', async function() {
     const rawText = document.getElementById('dwPaste').value;
@@ -67,6 +108,9 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
 
     let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
 
+    // ADDED: Update URL for Back Button support
+    updateURL(detectedCol, detectedMaj);
+
     const lines = rawText.split('\n');
     const tempCompleted = [];
     const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
@@ -82,7 +126,6 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     });
 
     completedCourses = [...new Set(tempCompleted)];
-
     const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
     const gpa = gpaMatch ? gpaMatch[1] : "N/A";
 
@@ -101,16 +144,12 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
         document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> requirements. GPA: <b>${gpa}</b>.</p>`;
     } else {
         statusHeader.innerText = "Data Missing";
-        document.getElementById('recommendation-list').innerHTML = `
-            <div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;">
-                <h4>Catalog Data Not Found</h4>
-                <p>Run autoIngestCatalog() for ${detectedCol} ${detectedMaj}.</p>
-            </div>`;
+        document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Catalog Data Not Found</h4></div>`;
     }
 });
 
 /* ==========================================
-   4. UI & MANUAL EXPLORE CONTROLS
+   5. UI & MANUAL EXPLORE CONTROLS
    ========================================== */
 const drawer = document.getElementById('advisorDrawer');
 document.getElementById('openChatBtn').addEventListener('click', () => drawer.classList.add('open'));
@@ -122,6 +161,9 @@ document.getElementById('viewMajorBtn').addEventListener('click', async function
     const statusHeader = document.getElementById('user-profile');
     
     if (col && maj) {
+        // ADDED: Update URL for Back Button support
+        updateURL(col, maj);
+        
         statusHeader.innerText = "Loading Roadmap...";
         completedCourses = []; 
         const courses = await fetchMajorData(col, maj, 'B.S.');
@@ -145,7 +187,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   5. RENDERING LOGIC (CATALOG SYNCED)
+   6. RENDERING LOGIC
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -164,21 +206,16 @@ function renderLockedDashboard(title, courses) {
     courses.forEach(course => {
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
-        
         const ruleText = course.prereq_logic || course.prerequisites || "None";
         const semesterLabel = course.active_semester_code || "Fall 2026";
 
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
             const reqCodes = reqStr.match(/[A-Z]{2,4}\s?\d{3,5}/g) || [];
-            if (reqCodes.length === 0) return true;
-            return reqCodes.every(code => {
-                const normalized = code.replace(/\s/g, ' '); 
-                return completedCourses.includes(normalized);
-            });
+            return reqCodes.every(code => completedCourses.includes(code.replace(/\s/g, ' ')));
         };
 
-        const isFullyUnlocked = checkMet(ruleText) && checkMet(course.corequisites);
+        const isFullyUnlocked = checkMet(ruleText);
 
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : (course.is_offered_current ? 'is-available' : 'is-wait'))}">
@@ -197,41 +234,4 @@ function renderLockedDashboard(title, courses) {
             </div>`;
         recList.innerHTML += cardHTML;
     });
-}
-
-/* ==========================================
-   6. AUTO-INGESTOR (NO MANUAL SQL REQUIRED)
-   ========================================== */
-async function autoIngestCatalog(college, major, degree, url, rawCatalogText) {
-    console.log(`🚀 Starting Auto-Ingest for ${college} ${major}...`);
-    
-    const courseRegex = /([A-Z]{2,4})\s?(\d{3,5})/g;
-    const matches = [...rawCatalogText.matchAll(courseRegex)];
-    const uniqueCourseIDs = [...new Set(matches.map(m => `${college}-${m[1].toUpperCase()}-${m[2]}`))];
-
-    if (uniqueCourseIDs.length === 0) {
-        console.error("❌ No courses found in text.");
-        return;
-    }
-
-    const rowsToInsert = uniqueCourseIDs.map(id => ({
-        college_name: college,
-        major_name: major,
-        degree_type: degree,
-        program_url: url,
-        course_id: id,
-        requirement_type: 'Major Core',
-        is_catalog_verified: true
-    }));
-
-    const { error } = await db
-        .from('major_rules')
-        .upsert(rowsToInsert, { onConflict: 'college_name,major_name,degree_type,course_id' });
-
-    if (error) {
-        console.error("❌ Ingestion Failed:", error.message);
-    } else {
-        console.log("✅ Catalog Synced! Refresh the page to see changes.");
-        alert(`${major} is now live.`);
-    }
 }
