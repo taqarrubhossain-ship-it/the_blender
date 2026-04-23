@@ -9,8 +9,15 @@
 <body>
     <nav class="navbar">
         <div class="logo">CUNY <span>PathFinder</span></div>
-        <div id="user-profile" class="user-status">Guest User</div>
-        <button id="openChatBtn" class="chat-toggle-btn" style="display:none;">💬 Ask Advisor</button>
+        
+        <div class="nav-right" style="display: flex; align-items: center; gap: 15px;">
+            <div id="user-profile" class="user-status">Guest User</div>
+            <div id="auth-buttons">
+                <button onclick="loginUser()" id="loginBtn" class="secondary-btn" style="padding: 5px 15px; font-size: 0.8rem;">Login</button>
+                <button onclick="saveProgress()" id="saveBtn" class="upload-btn" style="display:none; padding: 5px 15px; font-size: 0.8rem;">Save Progress</button>
+            </div>
+            <button id="openChatBtn" class="chat-toggle-btn" style="display:none;">💬 Ask Advisor</button>
+        </div>
     </nav>
 
     <main class="container">
@@ -76,7 +83,7 @@
             </div>
 
             <div style="text-align: center; margin-top: 3rem;">
-                <button onclick="location.reload()" class="secondary-btn" style="width: auto; padding: 12px 50px;">Reset Dashboard</button>
+                <button onclick="location.href=window.location.pathname" class="secondary-btn" style="width: auto; padding: 12px 50px;">Reset Dashboard</button>
             </div>
         </section>
 
