@@ -10,12 +10,14 @@ let completedCourses = [];
 /* ==========================================
    2. DATABASE FUNCTIONS
    ========================================== */
-async function fetchMajorData(selectedCollege, selectedMajor) {
+async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.') {
+    // UPDATED: Now fetches based on the specific degree variation (B.A./B.S.)
     const { data, error } = await db
         .from('student_roadmap') 
         .select('*')
         .eq('college_name', selectedCollege)
-        .eq('major_name', selectedMajor);
+        .eq('major_name', selectedMajor)
+        .eq('degree_type', degreeType);
 
     if (error) {
         console.error('Error fetching from Roadmap View:', error);
@@ -42,13 +44,16 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     if (rawText.includes("Hunter")) detectedCol = "Hunter";
     else if (rawText.includes("Baruch")) detectedCol = "Baruch";
 
-    // B. Priority Major Detection
+    // B. Priority Major & Degree Detection
     let detectedMaj = "";
     const lowerText = rawText.toLowerCase();
     if (lowerText.includes("biology")) detectedMaj = "Biology";
     else if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
     else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
     else detectedMaj = "Biology";
+
+    // Detect if B.A. or B.S. to prevent rule mismatches
+    let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
 
     // C. UNIVERSAL PARSING (Captures subjects like CSCI, PSY, BIO)
     const lines = rawText.split('\n');
@@ -82,15 +87,19 @@ document.getElementById('syncBtn').addEventListener('click', async function() {
     document.getElementById('collegeSelect').value = detectedCol;
     document.getElementById('majorSelect').value = detectedMaj;
 
-    // F. Fetch & Render
-    const courses = await fetchMajorData(detectedCol, detectedMaj);
+    // F. Fetch & Render with Degree Type
+    const courses = await fetchMajorData(detectedCol, detectedMaj, detectedDeg);
     
     if (courses && courses.length > 0) {
-        renderLockedDashboard(`${detectedCol} - ${detectedMaj}`, courses);
+        renderLockedDashboard(`${detectedCol} - ${detectedMaj} (${detectedDeg})`, courses);
         document.getElementById('openChatBtn').style.display = "block";
         document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> completed requirements. GPA: <b>${gpa}</b>.</p>`;
     } else {
-        document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Major Data Not Found</h4><p>Make sure the SQL expansion script was run in Supabase.</p></div>`;
+        document.getElementById('recommendation-list').innerHTML = `
+            <div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;">
+                <h4>Catalog Data Not Found</h4>
+                <p>Verify that ${detectedMaj} (${detectedDeg}) requirements have been imported for ${detectedCol}.</p>
+            </div>`;
     }
 });
 
@@ -104,13 +113,13 @@ document.getElementById('closeChat').addEventListener('click', () => drawer.clas
 document.getElementById('viewMajorBtn').addEventListener('click', async function() {
     const col = document.getElementById('collegeSelect').value;
     const maj = document.getElementById('majorSelect').value;
-    
+    // Defaulting to B.S. for manual view unless toggle is added
     if (col && maj) {
         completedCourses = []; 
-        const courses = await fetchMajorData(col, maj);
+        const courses = await fetchMajorData(col, maj, 'B.S.');
         
         if (courses && courses.length > 0) {
-            renderLockedDashboard(`${col} - ${maj}`, courses);
+            renderLockedDashboard(`${col} - ${maj} (B.S.)`, courses);
             document.getElementById('openChatBtn').style.display = "block";
         }
     }
@@ -131,7 +140,12 @@ function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     
-    document.getElementById('user-profile').innerText = `${title} Explorer`;
+    // Display Title and Catalog link from the first course record
+    const catalogUrl = courses[0]?.program_url || "#";
+    document.getElementById('user-profile').innerHTML = `
+        ${title} Explorer <br>
+        <a href="${catalogUrl}" target="_blank" style="font-size:0.7rem; color:#2196F3; text-decoration:none;">Official Catalog ↗</a>
+    `;
     document.getElementById('detected-major').innerText = `Path: ${title}`;
 
     const recList = document.getElementById('recommendation-list');
@@ -191,17 +205,20 @@ function renderLockedDashboard(title, courses) {
 }
 
 /* ==========================================
-   6. ADMIN TOOL: CATALOG TO SQL PARSER
+   6. ADMIN TOOL: UNIVERSAL CATALOG PARSER
    ========================================== */
-function generateCatalogSQL(college, major, rawCatalogText) {
+function generateCatalogSQL(college, major, degree, url, rawCatalogText) {
     const courseRegex = /([A-Z]{2,4})\s?(\d{3,5})/g;
     const matches = [...rawCatalogText.matchAll(courseRegex)];
     const uniqueCourses = [...new Set(matches.map(m => `${college}-${m[1].toUpperCase()}-${m[2]}`))];
     
-    let sql = `INSERT INTO major_rules (college_name, major_name, course_id, requirement_type, is_catalog_verified)\nVALUES `;
-    sql += uniqueCourses.map(id => `('${college}', '${major}', '${id}', 'Major Core', true)`).join(',\n');
-    sql += `\nON CONFLICT (college_name, major_name, course_id) DO UPDATE SET is_catalog_verified = true;`;
+    if (uniqueCourses.length === 0) return console.error("No valid courses found in text!");
+
+    let sql = `-- Catalog Data Pipeline Import: ${college} ${major} (${degree})\n`;
+    sql += `INSERT INTO major_rules (college_name, major_name, degree_type, program_url, course_id, requirement_type, is_catalog_verified)\nVALUES `;
+    sql += uniqueCourses.map(id => `('${college}', '${major}', '${degree}', '${url}', '${id}', 'Major Core', true)`).join(',\n');
+    sql += `\nON CONFLICT (college_name, major_name, degree_type, course_id) DO UPDATE SET is_catalog_verified = true, program_url = EXCLUDED.program_url;`;
     
-    console.log("%c PASTE THIS INTO SUPABASE SQL EDITOR:", "color: #2196F3; font-weight: bold;");
+    console.log("%c SUCCESS: PASTE THIS SQL INTO SUPABASE:", "color: #4CAF50; font-weight: bold;");
     console.log(sql);
 }
