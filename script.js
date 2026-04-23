@@ -3,18 +3,20 @@
    ========================================== */
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
+
+// Fix: Use the standard initialization pattern
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
 let currentUser = null;
 
-// NEW: Auth Listener to handle Guest vs Account status
+// Auth Listener to handle Guest vs Account status
 db.auth.onAuthStateChange((event, session) => {
     currentUser = session?.user || null;
     const profileHeader = document.getElementById('user-profile');
     if (currentUser) {
         console.log("Logged in as:", currentUser.email);
-        // You can update UI elements here to show the user is logged in
+        if(profileHeader) profileHeader.innerHTML = `Welcome, ${currentUser.email.split('@')[0]}`;
     }
 });
 
@@ -26,7 +28,6 @@ function updateURL(college, major) {
     window.history.pushState({ college, major }, '', newUrl);
 }
 
-// Automatically load data if the URL has parameters (for back button/refresh)
 async function autoLoadFromURL() {
     const params = new URLSearchParams(window.location.search);
     const col = params.get('college');
@@ -44,7 +45,7 @@ window.onpopstate = function(event) {
     if (event.state) {
         autoLoadFromURL();
     } else {
-        location.reload(); // Reset to home if they go all the way back
+        location.reload();
     }
 };
 
@@ -55,128 +56,135 @@ autoLoadFromURL();
    3. DATABASE FUNCTIONS
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.') {
-    console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor} | ${degreeType}`);
-    
-    let { data, error } = await db
-        .from('student_roadmap') 
-        .select('*')
-        .eq('college_name', selectedCollege)
-        .eq('major_name', selectedMajor)
-        .eq('degree_type', degreeType);
-
-    if (error) {
-        console.error('Database Error:', error);
-        return null;
-    }
-
-    if (!data || data.length === 0) {
-        console.warn(`No ${degreeType} found. Retrying broad search...`);
-        const { data: fallbackData, error: fallbackError } = await db
-            .from('student_roadmap')
+    try {
+        console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor} | ${degreeType}`);
+        
+        let { data, error } = await db
+            .from('student_roadmap') 
             .select('*')
             .eq('college_name', selectedCollege)
-            .eq('major_name', selectedMajor);
-        
-        if (fallbackError) return null;
-        return fallbackData;
+            .eq('major_name', selectedMajor)
+            .eq('degree_type', degreeType);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            const { data: fallbackData, error: fallbackError } = await db
+                .from('student_roadmap')
+                .select('*')
+                .eq('college_name', selectedCollege)
+                .eq('major_name', selectedMajor);
+            
+            if (fallbackError) throw fallbackError;
+            return fallbackData;
+        }
+        return data;
+    } catch (err) {
+        console.error('Database Connection Failed:', err.message);
+        return null;
     }
-    return data;
 }
 
 /* ==========================================
    4. SMART SYNC & TRIGGER LOGIC
    ========================================== */
-document.getElementById('syncBtn').addEventListener('click', async function() {
-    const rawText = document.getElementById('dwPaste').value;
-    const dashboard = document.getElementById('dashboard');
-    const inputArea = document.getElementById('input-area');
-    const statusHeader = document.getElementById('user-profile');
-    
-    if (!rawText.trim()) {
-        alert("The text area is empty! Please paste your DegreeWorks audit.");
-        return;
-    }
+const syncBtn = document.getElementById('syncBtn');
+if (syncBtn) {
+    syncBtn.addEventListener('click', async function() {
+        const rawText = document.getElementById('dwPaste').value;
+        const dashboard = document.getElementById('dashboard');
+        const inputArea = document.getElementById('input-area');
+        const statusHeader = document.getElementById('user-profile');
+        
+        if (!rawText.trim()) {
+            alert("The text area is empty! Please paste your DegreeWorks audit.");
+            return;
+        }
 
-    let detectedCol = "CCNY"; 
-    if (rawText.includes("Hunter")) detectedCol = "Hunter";
-    else if (rawText.includes("Baruch")) detectedCol = "Baruch";
+        let detectedCol = "CCNY"; 
+        if (rawText.includes("Hunter")) detectedCol = "Hunter";
+        else if (rawText.includes("Baruch")) detectedCol = "Baruch";
 
-    let detectedMaj = "Biology";
-    const lowerText = rawText.toLowerCase();
-    if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
-    else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
+        let detectedMaj = "Biology";
+        const lowerText = rawText.toLowerCase();
+        if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
+        else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
 
-    let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
+        let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
 
-    // ADDED: Update URL for Back Button support
-    updateURL(detectedCol, detectedMaj);
+        updateURL(detectedCol, detectedMaj);
 
-    const lines = rawText.split('\n');
-    const tempCompleted = [];
-    const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
+        const lines = rawText.split('\n');
+        const tempCompleted = [];
+        const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
 
-    lines.forEach(line => {
-        const match = line.match(universalRegex);
-        if (match) {
-            const normalizedCode = `${match[1].toUpperCase()} ${match[2]}`;
-            if (!/In-Progress|IP|\(IP\)|Registered|REG/i.test(line)) {
-                tempCompleted.push(normalizedCode);
+        lines.forEach(line => {
+            const match = line.match(universalRegex);
+            if (match) {
+                const normalizedCode = `${match[1].toUpperCase()} ${match[2]}`;
+                if (!/In-Progress|IP|\(IP\)|Registered|REG/i.test(line)) {
+                    tempCompleted.push(normalizedCode);
+                }
+            }
+        });
+
+        completedCourses = [...new Set(tempCompleted)];
+        const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
+        const gpa = gpaMatch ? gpaMatch[1] : "N/A";
+
+        inputArea.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+        if(statusHeader) statusHeader.innerText = `Analyzing ${detectedMaj}...`;
+        
+        document.getElementById('collegeSelect').value = detectedCol;
+        document.getElementById('majorSelect').value = detectedMaj;
+
+        const courses = await fetchMajorData(detectedCol, detectedMaj, detectedDeg);
+        
+        if (courses && courses.length > 0) {
+            renderLockedDashboard(`${detectedCol} - ${detectedMaj} (${detectedDeg})`, courses);
+            document.getElementById('openChatBtn').style.display = "block";
+            document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> requirements. GPA: <b>${gpa}</b>.</p>`;
+        } else {
+            if(statusHeader) statusHeader.innerText = "Data Missing";
+            document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Catalog Data Not Found</h4></div>`;
+        }
+    });
+}
+
+/* ==========================================
+   5. UI & MANUAL CONTROLS
+   ========================================== */
+const drawer = document.getElementById('advisorDrawer');
+const openChatBtn = document.getElementById('openChatBtn');
+const closeChatBtn = document.getElementById('closeChat');
+
+if(openChatBtn) openChatBtn.addEventListener('click', () => drawer.classList.add('open'));
+if(closeChatBtn) closeChatBtn.addEventListener('click', () => drawer.classList.remove('open'));
+
+const viewMajorBtn = document.getElementById('viewMajorBtn');
+if(viewMajorBtn) {
+    viewMajorBtn.addEventListener('click', async function() {
+        const col = document.getElementById('collegeSelect').value;
+        const maj = document.getElementById('majorSelect').value;
+        const statusHeader = document.getElementById('user-profile');
+        
+        if (col && maj) {
+            updateURL(col, maj);
+            if(statusHeader) statusHeader.innerText = "Loading Roadmap...";
+            completedCourses = []; 
+            const courses = await fetchMajorData(col, maj, 'B.S.');
+            
+            if (courses && courses.length > 0) {
+                renderLockedDashboard(`${col} - ${maj}`, courses);
+                document.getElementById('openChatBtn').style.display = "block";
+            } else {
+                if(statusHeader) statusHeader.innerText = "No Data Found";
+                alert("This major hasn't been imported yet.");
             }
         }
     });
-
-    completedCourses = [...new Set(tempCompleted)];
-    const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
-    const gpa = gpaMatch ? gpaMatch[1] : "N/A";
-
-    inputArea.classList.add('hidden');
-    dashboard.classList.remove('hidden');
-    statusHeader.innerText = `Analyzing ${detectedMaj}...`;
-    
-    document.getElementById('collegeSelect').value = detectedCol;
-    document.getElementById('majorSelect').value = detectedMaj;
-
-    const courses = await fetchMajorData(detectedCol, detectedMaj, detectedDeg);
-    
-    if (courses && courses.length > 0) {
-        renderLockedDashboard(`${detectedCol} - ${detectedMaj} (${detectedDeg})`, courses);
-        document.getElementById('openChatBtn').style.display = "block";
-        document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> requirements. GPA: <b>${gpa}</b>.</p>`;
-    } else {
-        statusHeader.innerText = "Data Missing";
-        document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Catalog Data Not Found</h4></div>`;
-    }
-});
-
-/* ==========================================
-   5. UI & MANUAL EXPLORE CONTROLS
-   ========================================== */
-const drawer = document.getElementById('advisorDrawer');
-document.getElementById('openChatBtn').addEventListener('click', () => drawer.classList.add('open'));
-document.getElementById('closeChat').addEventListener('click', () => drawer.classList.remove('open'));
-
-document.getElementById('viewMajorBtn').addEventListener('click', async function() {
-    const col = document.getElementById('collegeSelect').value;
-    const maj = document.getElementById('majorSelect').value;
-    const statusHeader = document.getElementById('user-profile');
-    
-    if (col && maj) {
-        // ADDED: Update URL for Back Button support
-        updateURL(col, maj);
-        
-        statusHeader.innerText = "Loading Roadmap...";
-        completedCourses = []; 
-        const courses = await fetchMajorData(col, maj, 'B.S.');
-        
-        if (courses && courses.length > 0) {
-            renderLockedDashboard(`${col} - ${maj}`, courses);
-            document.getElementById('openChatBtn').style.display = "block";
-        } else {
-            statusHeader.innerText = "No Data Found";
-            alert("This major hasn't been imported yet.");
-        }
-    }
-});
+}
 
 function openGlobalSearch(courseCode) {
     const courseNum = courseCode.replace(/\D/g, "");
@@ -194,10 +202,13 @@ function renderLockedDashboard(title, courses) {
     document.getElementById('dashboard').classList.remove('hidden');
     
     const catalogUrl = courses[0]?.program_url || "#";
-    document.getElementById('user-profile').innerHTML = `
-        ${title} Explorer <br>
-        <a href="${catalogUrl}" target="_blank" style="font-size:0.7rem; color:#2196F3; text-decoration:none;">Official Catalog ↗</a>
-    `;
+    const profileEl = document.getElementById('user-profile');
+    if(profileEl) {
+        profileEl.innerHTML = `
+            ${title} Explorer <br>
+            <a href="${catalogUrl}" target="_blank" style="font-size:0.7rem; color:#2196F3; text-decoration:none;">Official Catalog ↗</a>
+        `;
+    }
     document.getElementById('detected-major').innerText = `Path: ${title}`;
 
     const recList = document.getElementById('recommendation-list');
@@ -235,3 +246,24 @@ function renderLockedDashboard(title, courses) {
         recList.innerHTML += cardHTML;
     });
 }
+
+/* ==========================================
+   7. AUTH UI (Fix for Login Button)
+   ========================================== */
+async function handleLogin() {
+    const { data, error } = await db.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin + window.location.pathname
+        }
+    });
+    if (error) console.error("Login Error:", error.message);
+}
+
+// Add event listener for the login button if it exists
+document.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', handleLogin);
+    }
+});
