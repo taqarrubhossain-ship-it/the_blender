@@ -6,16 +6,14 @@ const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Load progress and simulated user from Local Storage
 let completedCourses = JSON.parse(localStorage.getItem('pathfinder_completed')) || [];
 let currentUser = localStorage.getItem('pathfinder_user') || null;
 
 /* ==========================================
-   2. SIMULATED AUTH LOGIC (Replaces Google Auth)
+   2. SIMULATED AUTH LOGIC
    ========================================== */
 function handleAuthAction() {
     if (!currentUser) {
-        // SIMULATED LOGIN - Avoids the 400 Google Provider Error
         const username = prompt("Enter Name or Student ID for Demo Login:");
         if (username) {
             currentUser = username;
@@ -23,7 +21,6 @@ function handleAuthAction() {
             updateAuthUI();
         }
     } else {
-        // LOGOUT/RESET
         if (confirm("Logout and clear demo session?")) {
             localStorage.removeItem('pathfinder_user');
             localStorage.removeItem('pathfinder_completed');
@@ -35,105 +32,55 @@ function handleAuthAction() {
 function updateAuthUI() {
     const loginBtn = document.getElementById('login-btn');
     const profileHeader = document.getElementById('user-profile');
-    
-    if (currentUser) {
-        if (loginBtn) loginBtn.innerText = "Logout";
-        if (profileHeader) profileHeader.innerHTML = `Welcome, <strong>${currentUser}</strong>`;
-    } else {
-        if (loginBtn) loginBtn.innerText = "Login";
+    if (loginBtn) loginBtn.innerText = currentUser ? "Logout" : "Login";
+    if (profileHeader && currentUser) {
+        profileHeader.innerHTML = `Welcome, <strong>${currentUser}</strong>`;
     }
 }
 
 /* ==========================================
-   3. ROUTING & DATABASE FUNCTIONS
-   ========================================= */
-function updateURL(college, major) {
-    const newUrl = `${window.location.pathname}?college=${encodeURIComponent(college)}&major=${encodeURIComponent(major)}`;
-    window.history.pushState({ college, major }, '', newUrl);
-}
-
-async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.') {
+   3. DATABASE & LOADING LOGIC
+   ========================================== */
+async function loadRoadmap(col, maj) {
+    console.log(`Loading Roadmap for: ${col} | ${maj}`);
     try {
-        console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor}`);
-        
-        let { data, error } = await db
-            .from('student_roadmap') 
+        const { data, error } = await db
+            .from('student_roadmap')
             .select('*')
-            .eq('college_name', selectedCollege)
-            .eq('major_name', selectedMajor);
+            .eq('college_name', col)
+            .eq('major_name', maj);
 
         if (error) throw error;
-        return data || [];
+
+        if (data && data.length > 0) {
+            // Update URL for routing
+            const newUrl = `${window.location.pathname}?college=${encodeURIComponent(col)}&major=${encodeURIComponent(maj)}`;
+            window.history.pushState({ col, maj }, '', newUrl);
+            
+            renderLockedDashboard(`${col} - ${maj}`, data);
+        } else {
+            alert("No data found for this selection in Supabase.");
+        }
     } catch (err) {
-        console.error('Database Connection Failed:', err.message);
-        return null;
-    }
-}
-
-// Reusable function to trigger the dashboard view
-async function loadRoadmap(col, maj) {
-    const courses = await fetchMajorData(col, maj);
-    if (courses && courses.length > 0) {
-        updateURL(col, maj);
-        renderLockedDashboard(`${col} - ${maj}`, courses);
-        document.getElementById('openChatBtn').style.display = "block";
-    } else {
-        alert("Major data not found in database.");
+        console.error("Fetch Error:", err.message);
     }
 }
 
 /* ==========================================
-   4. SMART SYNC & MANUAL EXPLORE LISTENERS
-   ========================================== */
-function initTriggers() {
-    // OPTION A: Smart Sync (DegreeWorks Paste)
-    const syncBtn = document.getElementById('syncBtn');
-    if (syncBtn) {
-        syncBtn.addEventListener('click', async function() {
-            const rawText = document.getElementById('dwPaste').value;
-            if (!rawText.trim()) {
-                alert("Please paste your DegreeWorks audit.");
-                return;
-            }
-
-            let detectedCol = rawText.includes("Hunter") ? "Hunter" : (rawText.includes("Baruch") ? "Baruch" : "CCNY");
-            let detectedMaj = rawText.toLowerCase().includes("computer science") ? "Computer Science" : "Biology";
-
-            const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/gi;
-            const matches = rawText.match(universalRegex) || [];
-            completedCourses = [...new Set(matches.map(m => m.toUpperCase()))];
-            localStorage.setItem('pathfinder_completed', JSON.stringify(completedCourses));
-
-            await loadRoadmap(detectedCol, detectedMaj);
-        });
-    }
-
-    // OPTION B: Manual Explore (Dropdowns)
-    const viewMajorBtn = document.getElementById('viewMajorBtn');
-    if (viewMajorBtn) {
-        viewMajorBtn.addEventListener('click', async function() {
-            const col = document.getElementById('collegeSelect').value;
-            const maj = document.getElementById('majorSelect').value;
-            await loadRoadmap(col, maj);
-        });
-    }
-}
-
-/* ==========================================
-   5. RENDERING LOGIC
+   4. RENDERING LOGIC
    ========================================== */
 function renderLockedDashboard(title, courses) {
-    document.getElementById('input-area').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-    
-    const profileEl = document.getElementById('user-profile');
-    if(profileEl && !currentUser) {
-        profileEl.innerHTML = `<strong>${title} Explorer</strong>`;
-    }
-    
-    document.getElementById('detected-major').innerText = `Path: ${title}`;
+    const inputArea = document.getElementById('input-area');
+    const dashboard = document.getElementById('dashboard');
     const recList = document.getElementById('recommendation-list');
-    recList.innerHTML = ""; 
+    const openChatBtn = document.getElementById('openChatBtn');
+
+    if (inputArea) inputArea.classList.add('hidden');
+    if (dashboard) dashboard.classList.remove('hidden');
+    if (openChatBtn) openChatBtn.style.display = "block";
+
+    document.getElementById('detected-major').innerText = `Path: ${title}`;
+    recList.innerHTML = "";
 
     courses.forEach(course => {
         const displayCode = course.course_id.split('-').slice(1).join(' ');
@@ -152,9 +99,7 @@ function renderLockedDashboard(title, courses) {
             <div class="course-card ${alreadyDone ? 'is-done' : (!isUnlocked ? 'is-locked' : 'is-available')}">
                 <div style="flex: 1;">
                     <strong>${displayCode}</strong> - ${course.course_name}
-                    <div class="req-details" style="font-size: 0.7rem; color: #666;">
-                        Prereqs: ${ruleText}
-                    </div>
+                    <div style="font-size: 0.7rem; color: #666;">Prereqs: ${ruleText}</div>
                     ${alreadyDone ? '✅ Completed' : (!isUnlocked ? '🔒 Locked' : '● Available')}
                 </div>
             </div>`;
@@ -162,18 +107,46 @@ function renderLockedDashboard(title, courses) {
 }
 
 /* ==========================================
-   6. INITIALIZATION
+   5. INITIALIZATION & EVENT LISTENERS
    ========================================== */
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
-    initTriggers();
 
+    // 1. Manual Explore Trigger
+    const viewMajorBtn = document.getElementById('viewMajorBtn');
+    if (viewMajorBtn) {
+        viewMajorBtn.addEventListener('click', () => {
+            const col = document.getElementById('collegeSelect').value;
+            const maj = document.getElementById('majorSelect').value;
+            loadRoadmap(col, maj);
+        });
+    }
+
+    // 2. Smart Sync Trigger
+    const syncBtn = document.getElementById('syncBtn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async () => {
+            const rawText = document.getElementById('dwPaste').value;
+            if (!rawText.trim()) return alert("Please paste your audit.");
+
+            const detCol = rawText.includes("Hunter") ? "Hunter" : (rawText.includes("Baruch") ? "Baruch" : "CCNY");
+            const detMaj = rawText.toLowerCase().includes("computer science") ? "Computer Science" : "Biology";
+
+            const matches = rawText.match(/([A-Z]{2,4})\s?(\d{3,5})/gi) || [];
+            completedCourses = [...new Set(matches.map(m => m.toUpperCase()))];
+            localStorage.setItem('pathfinder_completed', JSON.stringify(completedCourses));
+
+            loadRoadmap(detCol, detMaj);
+        });
+    }
+
+    // 3. UI/Auth Listeners
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) loginBtn.addEventListener('click', handleAuthAction);
-    
+
     const openChatBtn = document.getElementById('openChatBtn');
     const closeChatBtn = document.getElementById('closeChat');
     const drawer = document.getElementById('advisorDrawer');
-    if(openChatBtn) openChatBtn.addEventListener('click', () => drawer.classList.add('open'));
-    if(closeChatBtn) closeChatBtn.addEventListener('click', () => drawer.classList.remove('open'));
+    if (openChatBtn) openChatBtn.addEventListener('click', () => drawer.classList.add('open'));
+    if (closeChatBtn) closeChatBtn.addEventListener('click', () => drawer.classList.remove('open'));
 });
