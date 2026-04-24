@@ -4,47 +4,11 @@
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
 
-// Fix: Use the standard initialization pattern
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
-let currentUser = null;
-
-
-// Auth Listener to handle Guest vs Account status
-db.auth.onAuthStateChange((event, session) => {
-    currentUser = session?.user || null;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    const profileHeader = document.getElementById('user-profile');
-
-    if (currentUser) {
-        console.log("Logged in as:", currentUser.email);
-        if(profileHeader) profileHeader.innerHTML = `Welcome, ${currentUser.email.split('@')[0]}`;
-
-
-
-    }
-});
+// Fix: Retrieve demo user from local storage
+let currentUser = localStorage.getItem('pathfinder_user') || null;
 
 /* ==========================================
    2. ROUTING LOGIC (Back Button Fix)
@@ -74,9 +38,6 @@ window.onpopstate = function(event) {
         location.reload();
     }
 };
-
-// Initial run
-autoLoadFromURL();
 
 /* ==========================================
    3. DATABASE FUNCTIONS
@@ -135,9 +96,6 @@ if (syncBtn) {
         const lowerText = rawText.toLowerCase();
         if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
         else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
-
-
-
 
         let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
 
@@ -224,7 +182,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   6. RENDERING LOGIC
+   6. RENDERING LOGIC (Classes preserved)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -277,23 +235,39 @@ function renderLockedDashboard(title, courses) {
 }
 
 /* ==========================================
-   7. AUTH UI (Fix for Login Button)
+   7. AUTH UI & DEMO INITIALIZATION
    ========================================== */
-async function handleLogin() {
-    const { data, error } = await db.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            redirectTo: window.location.origin + window.location.pathname
+function handleLogin() {
+    if (!currentUser) {
+        // Fix: Use simulated login to avoid 400 Google Provider error
+        const username = prompt("Enter Name or ID for Demo Login:");
+        if (username) {
+            localStorage.setItem('pathfinder_user', username);
+            location.reload(); 
         }
-    });
-    if (error) console.error("Login Error:", error.message);
+    } else {
+        if (confirm("Logout of demo session?")) {
+            localStorage.removeItem('pathfinder_user');
+            location.reload();
+        }
+    }
 }
 
-// Add event listener for the login button if it exists
 document.addEventListener('DOMContentLoaded', () => {
-
+    // 1. Initialize UI with demo user
+    const profileHeader = document.getElementById('user-profile');
     const loginBtn = document.getElementById('login-btn');
+
+    if (currentUser) {
+        console.log("Logged in as Demo User:", currentUser);
+        if(profileHeader) profileHeader.innerHTML = `Welcome, <strong>${currentUser}</strong>`;
+        if(loginBtn) loginBtn.innerText = "Logout";
+    }
+
     if (loginBtn) {
         loginBtn.addEventListener('click', handleLogin);
     }
+
+    // 2. Safely run URL autoloader after everything is defined
+    autoLoadFromURL();
 });
