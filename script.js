@@ -4,24 +4,49 @@
 const SUPABASE_URL = 'https://mwwanyhnrbyrndnzqygp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
 
-// Fix: Use the standard initialization pattern
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let completedCourses = [];
-let currentUser = null;
-
-// Auth Listener to handle Guest vs Account status
-db.auth.onAuthStateChange((event, session) => {
-    currentUser = session?.user || null;
-    const profileHeader = document.getElementById('user-profile');
-    if (currentUser) {
-        console.log("Logged in as:", currentUser.email);
-        if(profileHeader) profileHeader.innerHTML = `Welcome, ${currentUser.email.split('@')[0]}`;
-    }
-});
+// Load progress and user from local storage
+let completedCourses = JSON.parse(localStorage.getItem('pathfinder_completed')) || [];
+let currentUser = localStorage.getItem('pathfinder_user') || null;
 
 /* ==========================================
-   2. ROUTING LOGIC (Back Button Fix)
+   2. SIMULATED AUTH LOGIC (Replaces Google Auth)
+   ========================================== */
+function handleAuthAction() {
+    if (!currentUser) {
+        // LOGIN FLOW
+        const username = prompt("Enter Username or Student ID:");
+        if (username) {
+            currentUser = username;
+            localStorage.setItem('pathfinder_user', username);
+            updateAuthUI();
+        }
+    } else {
+        // LOGOUT FLOW
+        if (confirm("Logout and clear this demo session?")) {
+            localStorage.removeItem('pathfinder_user');
+            localStorage.removeItem('pathfinder_completed');
+            location.reload();
+        }
+    }
+}
+
+function updateAuthUI() {
+    const loginBtn = document.getElementById('login-btn');
+    const profileHeader = document.getElementById('user-profile');
+    
+    if (currentUser) {
+        if (loginBtn) loginBtn.innerText = "Logout";
+        if (profileHeader) profileHeader.innerHTML = `Welcome, <strong>${currentUser}</strong>`;
+        console.log("Session Active:", currentUser);
+    } else {
+        if (loginBtn) loginBtn.innerText = "Login";
+    }
+}
+
+/* ==========================================
+   3. ROUTING LOGIC (Back Button Fix)
    ========================================== */
 function updateURL(college, major) {
     const newUrl = `${window.location.pathname}?college=${encodeURIComponent(college)}&major=${encodeURIComponent(major)}`;
@@ -49,16 +74,13 @@ window.onpopstate = function(event) {
     }
 };
 
-// Initial run
 autoLoadFromURL();
 
 /* ==========================================
-   3. DATABASE FUNCTIONS
+   4. DATABASE FUNCTIONS
    ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.') {
     try {
-        console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor} | ${degreeType}`);
-        
         let { data, error } = await db
             .from('student_roadmap') 
             .select('*')
@@ -67,18 +89,7 @@ async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.
             .eq('degree_type', degreeType);
 
         if (error) throw error;
-
-        if (!data || data.length === 0) {
-            const { data: fallbackData, error: fallbackError } = await db
-                .from('student_roadmap')
-                .select('*')
-                .eq('college_name', selectedCollege)
-                .eq('major_name', selectedMajor);
-            
-            if (fallbackError) throw fallbackError;
-            return fallbackData;
-        }
-        return data;
+        return data || [];
     } catch (err) {
         console.error('Database Connection Failed:', err.message);
         return null;
@@ -86,30 +97,17 @@ async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.
 }
 
 /* ==========================================
-   4. SMART SYNC & TRIGGER LOGIC
+   5. SMART SYNC & PERSISTENCE
    ========================================== */
 const syncBtn = document.getElementById('syncBtn');
 if (syncBtn) {
     syncBtn.addEventListener('click', async function() {
         const rawText = document.getElementById('dwPaste').value;
-        const dashboard = document.getElementById('dashboard');
-        const inputArea = document.getElementById('input-area');
-        const statusHeader = document.getElementById('user-profile');
-        
-        if (!rawText.trim()) {
-            alert("The text area is empty! Please paste your DegreeWorks audit.");
-            return;
-        }
+        if (!rawText.trim()) return;
 
-        let detectedCol = "CCNY"; 
-        if (rawText.includes("Hunter")) detectedCol = "Hunter";
-        else if (rawText.includes("Baruch")) detectedCol = "Baruch";
-
-        let detectedMaj = "Biology";
-        const lowerText = rawText.toLowerCase();
-        if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
-        else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
-
+        let detectedCol = rawText.includes("Hunter") ? "Hunter" : (rawText.includes("Baruch") ? "Baruch" : "CCNY");
+        let detectedMaj = rawText.toLowerCase().includes("computer science") ? "Computer Science" : 
+                         (rawText.toLowerCase().includes("psychology") ? "Psychology" : "Biology");
         let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
 
         updateURL(detectedCol, detectedMaj);
@@ -120,77 +118,18 @@ if (syncBtn) {
 
         lines.forEach(line => {
             const match = line.match(universalRegex);
-            if (match) {
-                const normalizedCode = `${match[1].toUpperCase()} ${match[2]}`;
-                if (!/In-Progress|IP|\(IP\)|Registered|REG/i.test(line)) {
-                    tempCompleted.push(normalizedCode);
-                }
+            if (match && !/In-Progress|IP|\(IP\)|Registered|REG/i.test(line)) {
+                tempCompleted.push(`${match[1].toUpperCase()} ${match[2]}`);
             }
         });
 
         completedCourses = [...new Set(tempCompleted)];
-        const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
-        const gpa = gpaMatch ? gpaMatch[1] : "N/A";
-
-        inputArea.classList.add('hidden');
-        dashboard.classList.remove('hidden');
-        if(statusHeader) statusHeader.innerText = `Analyzing ${detectedMaj}...`;
-        
-        document.getElementById('collegeSelect').value = detectedCol;
-        document.getElementById('majorSelect').value = detectedMaj;
+        localStorage.setItem('pathfinder_completed', JSON.stringify(completedCourses));
 
         const courses = await fetchMajorData(detectedCol, detectedMaj, detectedDeg);
-        
         if (courses && courses.length > 0) {
             renderLockedDashboard(`${detectedCol} - ${detectedMaj} (${detectedDeg})`, courses);
-            document.getElementById('openChatBtn').style.display = "block";
-            document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> requirements. GPA: <b>${gpa}</b>.</p>`;
-        } else {
-            if(statusHeader) statusHeader.innerText = "Data Missing";
-            document.getElementById('recommendation-list').innerHTML = `<div class="card" style="border: 2px dashed #ff4d4d; padding: 20px;"><h4>Catalog Data Not Found</h4></div>`;
         }
-    });
-}
-
-/* ==========================================
-   5. UI & MANUAL CONTROLS
-   ========================================== */
-const drawer = document.getElementById('advisorDrawer');
-const openChatBtn = document.getElementById('openChatBtn');
-const closeChatBtn = document.getElementById('closeChat');
-
-if(openChatBtn) openChatBtn.addEventListener('click', () => drawer.classList.add('open'));
-if(closeChatBtn) closeChatBtn.addEventListener('click', () => drawer.classList.remove('open'));
-
-const viewMajorBtn = document.getElementById('viewMajorBtn');
-if(viewMajorBtn) {
-    viewMajorBtn.addEventListener('click', async function() {
-        const col = document.getElementById('collegeSelect').value;
-        const maj = document.getElementById('majorSelect').value;
-        const statusHeader = document.getElementById('user-profile');
-        
-        if (col && maj) {
-            updateURL(col, maj);
-            if(statusHeader) statusHeader.innerText = "Loading Roadmap...";
-            completedCourses = []; 
-            const courses = await fetchMajorData(col, maj, 'B.S.');
-            
-            if (courses && courses.length > 0) {
-                renderLockedDashboard(`${col} - ${maj}`, courses);
-                document.getElementById('openChatBtn').style.display = "block";
-            } else {
-                if(statusHeader) statusHeader.innerText = "No Data Found";
-                alert("This major hasn't been imported yet.");
-            }
-        }
-    });
-}
-
-function openGlobalSearch(courseCode) {
-    const courseNum = courseCode.replace(/\D/g, "");
-    navigator.clipboard.writeText(courseNum).then(() => {
-        alert(`Course number ${courseNum} copied!\nOpening CUNY Global Search.`);
-        window.open('https://globalsearch.cuny.edu/CFGlobalSearchTool/search.jsp', '_blank');
     });
 }
 
@@ -200,15 +139,6 @@ function openGlobalSearch(courseCode) {
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
-    
-    const catalogUrl = courses[0]?.program_url || "#";
-    const profileEl = document.getElementById('user-profile');
-    if(profileEl) {
-        profileEl.innerHTML = `
-            ${title} Explorer <br>
-            <a href="${catalogUrl}" target="_blank" style="font-size:0.7rem; color:#2196F3; text-decoration:none;">Official Catalog ↗</a>
-        `;
-    }
     document.getElementById('detected-major').innerText = `Path: ${title}`;
 
     const recList = document.getElementById('recommendation-list');
@@ -218,7 +148,6 @@ function renderLockedDashboard(title, courses) {
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
         const ruleText = course.prereq_logic || course.prerequisites || "None";
-        const semesterLabel = course.active_semester_code || "Fall 2026";
 
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
@@ -228,42 +157,26 @@ function renderLockedDashboard(title, courses) {
 
         const isFullyUnlocked = checkMet(ruleText);
 
-        const cardHTML = `
-            <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : (course.is_offered_current ? 'is-available' : 'is-wait'))}">
+        recList.innerHTML += `
+            <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : 'is-available')}">
                 <div style="flex: 1;">
-                    <span class="category-tag">${course.requirement_type || "Major Core"}</span><br>
                     <strong>${displayCode}</strong> - ${course.course_name}
-                    <div class="req-details" style="font-size: 0.75rem; margin: 8px 0; color: #555; background: #f4f4f4; padding: 5px; border-radius: 4px;">
-                        <b>Prerequisites:</b> ${ruleText}
+                    <div class="req-details" style="font-size: 0.7rem; color: #666;">
+                        Prereqs: ${ruleText}
                     </div>
-                    ${alreadyDone ? '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
-                    (!isFullyUnlocked ? `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Missing Prereqs</span>` : 
-                    (course.is_offered_current ? `<span class="status-text" style="color:#2196F3">● Available (${semesterLabel})</span>` : 
-                    `<span class="status-text" style="color:#f39c12">⏳ Not in ${semesterLabel} Schedule</span>`))}
+                    ${alreadyDone ? '✅ Done' : (!isFullyUnlocked ? '🔒 Locked' : '● Available')}
                 </div>
-                ${!alreadyDone && isFullyUnlocked && course.is_offered_current ? `<button class="search-btn" onclick="openGlobalSearch('${displayCode}')">🔍 Find</button>` : ''}
             </div>`;
-        recList.innerHTML += cardHTML;
     });
 }
 
 /* ==========================================
-   7. AUTH UI (Fix for Login Button)
+   7. INITIALIZATION
    ========================================== */
-async function handleLogin() {
-    const { data, error } = await db.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-            redirectTo: window.location.origin + window.location.pathname
-        }
-    });
-    if (error) console.error("Login Error:", error.message);
-}
-
-// Add event listener for the login button if it exists
 document.addEventListener('DOMContentLoaded', () => {
+    updateAuthUI();
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', handleLogin);
+        loginBtn.addEventListener('click', handleAuthAction);
     }
 });
