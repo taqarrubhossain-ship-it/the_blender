@@ -15,7 +15,7 @@ let currentUser = localStorage.getItem('pathfinder_user') || null;
    ========================================== */
 function handleAuthAction() {
     if (!currentUser) {
-        // SIMULATED LOGIN
+        // SIMULATED LOGIN - Avoids the 400 Google Provider Error
         const username = prompt("Enter Name or Student ID for Demo Login:");
         if (username) {
             currentUser = username;
@@ -45,143 +45,90 @@ function updateAuthUI() {
 }
 
 /* ==========================================
-   3. ROUTING LOGIC (Back Button Fix)
-   ========================================== */
+   3. ROUTING & DATABASE FUNCTIONS
+   ========================================= */
 function updateURL(college, major) {
     const newUrl = `${window.location.pathname}?college=${encodeURIComponent(college)}&major=${encodeURIComponent(major)}`;
     window.history.pushState({ college, major }, '', newUrl);
 }
 
-async function autoLoadFromURL() {
-    const params = new URLSearchParams(window.location.search);
-    const col = params.get('college');
-    const maj = params.get('major');
-    
-    if (col && maj) {
-        const courses = await fetchMajorData(col, maj);
-        if (courses && courses.length > 0) {
-            renderLockedDashboard(`${col} - ${maj}`, courses);
-        }
-    }
-}
-
-window.onpopstate = function(event) {
-    if (event.state) {
-        autoLoadFromURL();
-    } else {
-        location.reload();
-    }
-};
-
-autoLoadFromURL();
-
-/* ==========================================
-   4. DATABASE FUNCTIONS
-   ========================================== */
 async function fetchMajorData(selectedCollege, selectedMajor, degreeType = 'B.S.') {
     try {
-        console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor} | ${degreeType}`);
+        console.log(`Attempting Fetch: ${selectedCollege} | ${selectedMajor}`);
         
         let { data, error } = await db
             .from('student_roadmap') 
             .select('*')
             .eq('college_name', selectedCollege)
-            .eq('major_name', selectedMajor)
-            .eq('degree_type', degreeType);
+            .eq('major_name', selectedMajor);
 
         if (error) throw error;
-
-        if (!data || data.length === 0) {
-            const { data: fallbackData, error: fallbackError } = await db
-                .from('student_roadmap')
-                .select('*')
-                .eq('college_name', selectedCollege)
-                .eq('major_name', selectedMajor);
-            
-            if (fallbackError) throw fallbackError;
-            return fallbackData;
-        }
-        return data;
+        return data || [];
     } catch (err) {
         console.error('Database Connection Failed:', err.message);
         return null;
     }
 }
 
-/* ==========================================
-   5. SMART SYNC & TRIGGER LOGIC
-   ========================================== */
-const syncBtn = document.getElementById('syncBtn');
-if (syncBtn) {
-    syncBtn.addEventListener('click', async function() {
-        const rawText = document.getElementById('dwPaste').value;
-        const dashboard = document.getElementById('dashboard');
-        const inputArea = document.getElementById('input-area');
-        const statusHeader = document.getElementById('user-profile');
-        
-        if (!rawText.trim()) {
-            alert("The text area is empty! Please paste your DegreeWorks audit.");
-            return;
-        }
-
-        let detectedCol = rawText.includes("Hunter") ? "Hunter" : (rawText.includes("Baruch") ? "Baruch" : "CCNY");
-        let detectedMaj = "Biology";
-        const lowerText = rawText.toLowerCase();
-        if (lowerText.includes("computer science")) detectedMaj = "Computer Science";
-        else if (lowerText.includes("psychology")) detectedMaj = "Psychology";
-
-        let detectedDeg = rawText.includes("Bachelor of Arts") ? "B.A." : "B.S.";
-
-        updateURL(detectedCol, detectedMaj);
-
-        const lines = rawText.split('\n');
-        const tempCompleted = [];
-        const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/i;
-
-        lines.forEach(line => {
-            const match = line.match(universalRegex);
-            if (match && !/In-Progress|IP|\(IP\)|Registered|REG/i.test(line)) {
-                tempCompleted.push(`${match[1].toUpperCase()} ${match[2]}`);
-            }
-        });
-
-        completedCourses = [...new Set(tempCompleted)];
-        // Save progress to LocalStorage for persistence
-        localStorage.setItem('pathfinder_completed', JSON.stringify(completedCourses));
-
-        const gpaMatch = rawText.match(/Cumulative GPA\s+([\d.]+)/);
-        const gpa = gpaMatch ? gpaMatch[1] : "N/A";
-
-        inputArea.classList.add('hidden');
-        dashboard.classList.remove('hidden');
-        if(statusHeader && !currentUser) statusHeader.innerText = `Analyzing ${detectedMaj}...`;
-        
-        document.getElementById('collegeSelect').value = detectedCol;
-        document.getElementById('majorSelect').value = detectedMaj;
-
-        const courses = await fetchMajorData(detectedCol, detectedMaj, detectedDeg);
-        
-        if (courses && courses.length > 0) {
-            renderLockedDashboard(`${detectedCol} - ${detectedMaj} (${detectedDeg})`, courses);
-            document.getElementById('openChatBtn').style.display = "block";
-            document.getElementById('chatHistory').innerHTML = `<p class="bot-msg">Audit Analyzed! Found <b>${completedCourses.length}</b> requirements. GPA: <b>${gpa}</b>.</p>`;
-        }
-    });
+// Reusable function to trigger the dashboard view
+async function loadRoadmap(col, maj) {
+    const courses = await fetchMajorData(col, maj);
+    if (courses && courses.length > 0) {
+        updateURL(col, maj);
+        renderLockedDashboard(`${col} - ${maj}`, courses);
+        document.getElementById('openChatBtn').style.display = "block";
+    } else {
+        alert("Major data not found in database.");
+    }
 }
 
 /* ==========================================
-   6. RENDERING LOGIC
+   4. SMART SYNC & MANUAL EXPLORE LISTENERS
+   ========================================== */
+function initTriggers() {
+    // OPTION A: Smart Sync (DegreeWorks Paste)
+    const syncBtn = document.getElementById('syncBtn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async function() {
+            const rawText = document.getElementById('dwPaste').value;
+            if (!rawText.trim()) {
+                alert("Please paste your DegreeWorks audit.");
+                return;
+            }
+
+            let detectedCol = rawText.includes("Hunter") ? "Hunter" : (rawText.includes("Baruch") ? "Baruch" : "CCNY");
+            let detectedMaj = rawText.toLowerCase().includes("computer science") ? "Computer Science" : "Biology";
+
+            const universalRegex = /([A-Z]{2,4})\s?(\d{3,5})/gi;
+            const matches = rawText.match(universalRegex) || [];
+            completedCourses = [...new Set(matches.map(m => m.toUpperCase()))];
+            localStorage.setItem('pathfinder_completed', JSON.stringify(completedCourses));
+
+            await loadRoadmap(detectedCol, detectedMaj);
+        });
+    }
+
+    // OPTION B: Manual Explore (Dropdowns)
+    const viewMajorBtn = document.getElementById('viewMajorBtn');
+    if (viewMajorBtn) {
+        viewMajorBtn.addEventListener('click', async function() {
+            const col = document.getElementById('collegeSelect').value;
+            const maj = document.getElementById('majorSelect').value;
+            await loadRoadmap(col, maj);
+        });
+    }
+}
+
+/* ==========================================
+   5. RENDERING LOGIC
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     
-    const catalogUrl = courses[0]?.program_url || "#";
     const profileEl = document.getElementById('user-profile');
-    
-    // Maintain the Welcome message if logged in, otherwise show Title
     if(profileEl && !currentUser) {
-        profileEl.innerHTML = `${title} Explorer <br> <a href="${catalogUrl}" target="_blank" style="font-size:0.7rem; color:#2196F3; text-decoration:none;">Official Catalog ↗</a>`;
+        profileEl.innerHTML = `<strong>${title} Explorer</strong>`;
     }
     
     document.getElementById('detected-major').innerText = `Path: ${title}`;
@@ -191,8 +138,7 @@ function renderLockedDashboard(title, courses) {
     courses.forEach(course => {
         const displayCode = course.course_id.split('-').slice(1).join(' ');
         const alreadyDone = completedCourses.includes(displayCode);
-        const ruleText = course.prereq_logic || course.prerequisites || "None";
-        const semesterLabel = course.active_semester_code || "Fall 2026";
+        const ruleText = course.prereq_logic || "None";
 
         const checkMet = (reqStr) => {
             if (!reqStr || reqStr === "None") return true;
@@ -200,34 +146,31 @@ function renderLockedDashboard(title, courses) {
             return reqCodes.every(code => completedCourses.includes(code.replace(/\s/g, ' ')));
         };
 
-        const isFullyUnlocked = checkMet(ruleText);
+        const isUnlocked = checkMet(ruleText);
 
-        const cardHTML = `
-            <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : (course.is_offered_current ? 'is-available' : 'is-wait'))}">
+        recList.innerHTML += `
+            <div class="course-card ${alreadyDone ? 'is-done' : (!isUnlocked ? 'is-locked' : 'is-available')}">
                 <div style="flex: 1;">
-                    <span class="category-tag">${course.requirement_type || "Major Core"}</span><br>
                     <strong>${displayCode}</strong> - ${course.course_name}
-                    <div class="req-details" style="font-size: 0.75rem; margin: 8px 0; color: #555; background: #f4f4f4; padding: 4px; border-radius: 4px;">
-                        <b>Prerequisites:</b> ${ruleText}
+                    <div class="req-details" style="font-size: 0.7rem; color: #666;">
+                        Prereqs: ${ruleText}
                     </div>
-                    ${alreadyDone ? '✅ Completed' : (!isFullyUnlocked ? '🔒 Locked' : '● Available')}
+                    ${alreadyDone ? '✅ Completed' : (!isUnlocked ? '🔒 Locked' : '● Available')}
                 </div>
             </div>`;
-        recList.innerHTML += cardHTML;
     });
 }
 
 /* ==========================================
-   7. INITIALIZATION
+   6. INITIALIZATION
    ========================================== */
 document.addEventListener('DOMContentLoaded', () => {
     updateAuthUI();
+    initTriggers();
+
     const loginBtn = document.getElementById('login-btn');
-    if (loginBtn) {
-        loginBtn.addEventListener('click', handleAuthAction);
-    }
+    if (loginBtn) loginBtn.addEventListener('click', handleAuthAction);
     
-    // UI Drawer listeners
     const openChatBtn = document.getElementById('openChatBtn');
     const closeChatBtn = document.getElementById('closeChat');
     const drawer = document.getElementById('advisorDrawer');
