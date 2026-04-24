@@ -235,11 +235,11 @@ function renderLockedDashboard(title, courses) {
 }
 
 /* ==========================================
-   7. AUTH UI & DEMO INITIALIZATION
+   7. AUTH UI & DEMO INITIALIZATION (STRICT FIX)
    ========================================== */
 function handleLogin() {
+    // This entirely removes the call to Supabase Google OAuth to avoid the 400 error
     if (!currentUser) {
-        // Fix: Use simulated login to avoid 400 Google Provider error
         const username = prompt("Enter Name or ID for Demo Login:");
         if (username) {
             localStorage.setItem('pathfinder_user', username);
@@ -254,20 +254,20 @@ function handleLogin() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize UI with demo user
     const profileHeader = document.getElementById('user-profile');
     const loginBtn = document.getElementById('login-btn');
 
+    // Update UI if we have a simulated user
     if (currentUser) {
-        console.log("Logged in as Demo User:", currentUser);
         if(profileHeader) profileHeader.innerHTML = `Welcome, <strong>${currentUser}</strong>`;
         if(loginBtn) loginBtn.innerText = "Logout";
     }
 
+    // Bind the fix to the button
     if (loginBtn) {
         loginBtn.addEventListener('click', handleLogin);
     }
 
-    // 2. Safely run URL autoloader after everything is defined
+    // Safely run the autoloader now that all functions are defined
     autoLoadFromURL();
 });
