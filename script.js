@@ -7,7 +7,6 @@ const SUPABASE_KEY = 'sb_publishable_gKsUflWwvYveDY3CtY6Sww_Q9WMOJAg';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let completedCourses = [];
-// Fix: Retrieve demo user from local storage
 let currentUser = localStorage.getItem('pathfinder_user') || null;
 
 /* ==========================================
@@ -182,7 +181,7 @@ function openGlobalSearch(courseCode) {
 }
 
 /* ==========================================
-   6. RENDERING LOGIC (Classes preserved)
+   6. RENDERING LOGIC (E-PERMIT INTEGRATED)
    ========================================== */
 function renderLockedDashboard(title, courses) {
     document.getElementById('input-area').classList.add('hidden');
@@ -215,6 +214,14 @@ function renderLockedDashboard(title, courses) {
 
         const isFullyUnlocked = checkMet(ruleText);
 
+        // --- NEW E-PERMIT ADDITION ---
+        const ePermitBadge = course.epermit_equivalent_id 
+            ? `<div class="epermit-badge" style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 6px 10px; margin: 8px 0; font-size: 0.7rem; color: #0d47a1; border-radius: 4px;">
+                🚀 e-Permit Available: <b>${course.epermit_equivalent_id}</b> at ${course.epermit_college}
+               </div>` 
+            : '';
+        // -----------------------------
+
         const cardHTML = `
             <div class="course-card ${alreadyDone ? 'is-done' : (!isFullyUnlocked ? 'is-locked' : (course.is_offered_current ? 'is-available' : 'is-wait'))}">
                 <div style="flex: 1;">
@@ -223,6 +230,7 @@ function renderLockedDashboard(title, courses) {
                     <div class="req-details" style="font-size: 0.75rem; margin: 8px 0; color: #555; background: #f4f4f4; padding: 5px; border-radius: 4px;">
                         <b>Prerequisites:</b> ${ruleText}
                     </div>
+                    ${ePermitBadge}
                     ${alreadyDone ? '<span class="status-text" style="color:#2ecc71">✅ Completed</span>' : 
                     (!isFullyUnlocked ? `<span class="prereq-hint" style="color:#e74c3c">🔒 Locked: Missing Prereqs</span>` : 
                     (course.is_offered_current ? `<span class="status-text" style="color:#2196F3">● Available (${semesterLabel})</span>` : 
@@ -238,7 +246,6 @@ function renderLockedDashboard(title, courses) {
    7. AUTH UI & DEMO INITIALIZATION (STRICT FIX)
    ========================================== */
 function handleLogin() {
-    // This entirely removes the call to Supabase Google OAuth to avoid the 400 error
     if (!currentUser) {
         const username = prompt("Enter Name or ID for Demo Login:");
         if (username) {
@@ -257,17 +264,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileHeader = document.getElementById('user-profile');
     const loginBtn = document.getElementById('login-btn');
 
-    // Update UI if we have a simulated user
     if (currentUser) {
         if(profileHeader) profileHeader.innerHTML = `Welcome, <strong>${currentUser}</strong>`;
         if(loginBtn) loginBtn.innerText = "Logout";
     }
 
-    // Bind the fix to the button
     if (loginBtn) {
         loginBtn.addEventListener('click', handleLogin);
     }
 
-    // Safely run the autoloader now that all functions are defined
     autoLoadFromURL();
 });
